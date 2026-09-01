@@ -18,15 +18,12 @@ import java.time.Duration;
 @Configuration
 public class RestTemplateConfig {
 
-    /** HTTP 连接超时时间，单位毫秒 */
     @Value("${http.connect-timeout}")
     private Integer connectTimeout;
 
-    /** HTTP 读取超时时间，单位毫秒 */
     @Value("${http.read-timeout}")
     private Integer readTimeout;
 
-    /** Spring Boot 提供的 RestTemplate 构建器 */
     @Autowired
     private RestTemplateBuilder restTemplateBuilder;
 

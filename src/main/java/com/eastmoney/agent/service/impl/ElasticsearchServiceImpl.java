@@ -32,27 +32,21 @@ import java.util.Map;
 @Service
 public class ElasticsearchServiceImpl implements ElasticsearchService {
 
-    /** Elasticsearch 服务地址 */
     @Value("${elasticsearch.url}")
     private String elasticsearchUrl;
 
-    /** Elasticsearch 用户名 */
     @Value("${elasticsearch.username}")
     private String elasticsearchUsername;
 
-    /** Elasticsearch 密码 */
     @Value("${elasticsearch.password}")
     private String elasticsearchPassword;
 
-    /** Elasticsearch 索引名称 */
     @Value("${elasticsearch.index-name}")
     private String elasticsearchIndexName;
 
-    /** Elasticsearch dense_vector 向量维度 */
     @Value("${ai.embedding.dimensions}")
     private Integer embeddingDimensions;
 
-    /** HTTP 请求客户端 */
     @Autowired
     private RestTemplate restTemplate;
 

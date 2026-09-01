@@ -89,11 +89,11 @@ elasticsearch:
 示例：
 
 ```bash
-curl -X POST http://localhost:8080/api/knowledge/import \
+curl -X POST http://localhost:3859/api/knowledge/import \
   -H "Content-Type: application/json" \
   -d '{"title":"雨天晾衣","content":"下雨天可以使用风扇或空调除湿模式加快衣服干燥。"}'
 
-curl -X POST http://localhost:8080/api/chat/ask \
+curl -X POST http://localhost:3859/api/chat/ask \
   -H "Content-Type: application/json" \
   -d '{"question":"下雨天衣服不干怎么办？","topK":4}'
 ```

@@ -14,12 +14,12 @@ import javax.validation.constraints.Size;
 @Data
 public class KnowledgeImportReqVO {
 
-    /** 文章标题 */
+    // 文章标题
     @NotBlank(message = "文章标题不能为空")
     @Size(max = 200, message = "文章标题不能超过 200 个字符")
     private String title;
 
-    /** 文章正文内容 */
+    // 文章正文内容
     @NotBlank(message = "文章内容不能为空")
     private String content;
 }

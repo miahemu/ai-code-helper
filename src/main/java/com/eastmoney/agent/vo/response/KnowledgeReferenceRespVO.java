@@ -11,18 +11,18 @@ import lombok.Data;
 @Data
 public class KnowledgeReferenceRespVO {
 
-    /** 原始文档唯一标识 */
+    // 原始文档唯一标识
     private String documentId;
 
-    /** 原始文档标题 */
+    // 原始文档标题
     private String title;
 
-    /** 引用切片在原始文档中的顺序 */
+    // 引用切片在原始文档中的顺序
     private Integer chunkIndex;
 
-    /** 引用的切片内容 */
+    // 引用的切片内容
     private String content;
 
-    /** 引用切片与问题的相似度得分 */
+    // 引用切片与问题的相似度得分
     private Double score;
 }

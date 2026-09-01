@@ -13,24 +13,24 @@ import java.time.LocalDateTime;
 @Data
 public class KnowledgeDocumentRespVO {
 
-    /** 文档唯一标识 */
+    // 文档唯一标识
     private String documentId;
 
-    /** 文档标题 */
+    // 文档标题
     private String title;
 
-    /** 上传文件名 */
+    // 上传文件名
     private String filename;
 
-    /** 文档类型 */
+    // 文档类型
     private String documentType;
 
-    /** 当前索引切片数量 */
+    // 当前索引切片数量
     private Integer chunkCount;
 
-    /** 文档创建时间 */
+    // 文档创建时间
     private LocalDateTime createTime;
 
-    /** 最近索引时间 */
+    // 最近索引时间
     private LocalDateTime updateTime;
 }

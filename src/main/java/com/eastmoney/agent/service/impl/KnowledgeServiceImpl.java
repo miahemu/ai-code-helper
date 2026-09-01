@@ -53,23 +53,18 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Value("${ai.chunk.overlap}")
     private Integer chunkOverlap;
 
-    /** 是否启用 Elasticsearch 向量库 */
     @Value("${elasticsearch.enabled}")
     private Boolean elasticsearchEnabled;
 
-    /** Elasticsearch 索引名称 */
     @Value("${elasticsearch.index-name}")
     private String elasticsearchIndexName;
 
-    /** 文本向量生成服务 */
     @Autowired
     private EmbeddingService embeddingService;
 
-    /** Elasticsearch 向量存储服务 */
     @Autowired
     private ElasticsearchService elasticsearchService;
 
-    /** 上传文档解析服务 */
     @Autowired
     private DocumentParserService documentParserService;
 
@@ -265,7 +260,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         return chunks;
     }
 
-    /** 将切片写入当前启用的向量存储。 */
+    /**
+     * 将切片写入当前启用的向量存储。
+     */
     private void saveChunks(List<KnowledgeChunk> chunks) {
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
             elasticsearchService.saveAll(chunks);
@@ -276,7 +273,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
     }
 
-    /** 删除指定文档在当前向量存储中的全部切片。 */
+    /**
+     * 删除指定文档在当前向量存储中的全部切片。
+     */
     private void deleteChunks(String documentId) {
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
             elasticsearchService.deleteByDocumentId(documentId);

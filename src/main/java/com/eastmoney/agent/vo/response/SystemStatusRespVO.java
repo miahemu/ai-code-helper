@@ -11,12 +11,12 @@ import lombok.Data;
 @Data
 public class SystemStatusRespVO {
 
-    /** 向量生成模式：remote 或 local-hash */
+    // 向量生成模式：remote 或 local-hash
     private String embeddingMode;
 
-    /** 向量库模式：elasticsearch 或 memory */
+    // 向量库模式：elasticsearch 或 memory
     private String vectorStoreMode;
 
-    /** Elasticsearch 索引名称 */
+    // Elasticsearch 索引名称
     private String indexName;
 }

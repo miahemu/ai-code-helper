@@ -26,7 +26,6 @@ import javax.validation.Valid;
 @RequestMapping("api/chat")
 public class ChatController {
 
-    /** AI 对答编排服务 */
     @Autowired
     private ChatService chatService;
 

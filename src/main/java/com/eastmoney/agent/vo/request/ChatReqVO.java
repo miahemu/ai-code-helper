@@ -14,11 +14,11 @@ import javax.validation.constraints.Size;
 @Data
 public class ChatReqVO {
 
-    /** 用户问题 */
+    // 用户问题
     @NotBlank(message = "问题不能为空")
     @Size(max = 2000, message = "问题不能超过 2000 个字符")
     private String question;
 
-    /** 返回的知识库参考片段数量 */
+    // 返回的知识库参考片段数量
     private Integer topK = 4;
 }

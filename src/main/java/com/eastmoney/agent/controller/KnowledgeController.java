@@ -36,7 +36,6 @@ import java.util.List;
 @RequestMapping("api/knowledge")
 public class KnowledgeController {
 
-    /** 知识库导入、检索及文档管理服务 */
     @Autowired
     private KnowledgeService knowledgeService;
 

@@ -13,12 +13,12 @@ import java.util.List;
 @Data
 public class ChatRespVO {
 
-    /** 大模型生成的回答 */
+    // 大模型生成的回答
     private String answer;
 
-    /** 向量库模式：elasticsearch 或 memory */
+    // 向量库模式：elasticsearch 或 memory
     private String vectorStoreMode;
 
-    /** 本次回答引用的知识库片段 */
+    // 本次回答引用的知识库片段
     private List<KnowledgeReferenceRespVO> references;
 }

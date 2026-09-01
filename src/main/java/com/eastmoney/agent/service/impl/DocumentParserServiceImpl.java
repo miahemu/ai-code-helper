@@ -74,7 +74,6 @@ public class DocumentParserServiceImpl implements DocumentParserService {
         return result;
     }
 
-    /** 解析 PDF 文档文本 */
     private String parsePdf(MultipartFile file) throws IOException {
         try (InputStream inputStream = file.getInputStream();
              PDDocument document = PDDocument.load(inputStream)) {
@@ -82,7 +81,6 @@ public class DocumentParserServiceImpl implements DocumentParserService {
         }
     }
 
-    /** 解析 Word 97-2003 文档文本 */
     private String parseDoc(MultipartFile file) throws IOException {
         try (InputStream inputStream = file.getInputStream();
              HWPFDocument document = new HWPFDocument(inputStream);
@@ -91,7 +89,6 @@ public class DocumentParserServiceImpl implements DocumentParserService {
         }
     }
 
-    /** 解析 Word 2007 及以上版本文档文本 */
     private String parseDocx(MultipartFile file) throws IOException {
         try (InputStream inputStream = file.getInputStream();
              XWPFDocument document = new XWPFDocument(inputStream);

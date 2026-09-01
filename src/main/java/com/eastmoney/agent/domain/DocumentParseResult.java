@@ -12,15 +12,15 @@ import lombok.Data;
 @Data
 public class DocumentParseResult {
 
-    /** 原始文件名 */
+    // 原始文件名
     private String filename;
 
-    /** 默认文档标题 */
+    // 默认文档标题
     private String title;
 
-    /** 文档类型 */
+    // 文档类型
     private DocumentTypeEnum documentType;
 
-    /** 解析后的纯文本内容 */
+    // 解析后的纯文本内容
     private String content;
 }
