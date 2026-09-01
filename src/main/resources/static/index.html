@@ -16,9 +16,20 @@
         .card { background: white; border: 1px solid #e0e6ee; border-radius: 16px; box-shadow: 0 8px 28px rgba(28, 47, 76, .06); overflow: hidden; }
         .card-title { padding: 17px 20px; border-bottom: 1px solid #edf0f4; font-weight: 700; }
         .chat-list { height: 525px; padding: 20px; overflow: auto; }
-        .message { max-width: 86%; margin-bottom: 16px; padding: 12px 15px; border-radius: 14px; line-height: 1.65; white-space: pre-wrap; }
+        .message { max-width: 86%; margin-bottom: 16px; padding: 12px 15px; border-radius: 14px; line-height: 1.65; }
         .assistant { background: #f1f5fa; border-bottom-left-radius: 4px; }
-        .user { margin-left: auto; background: #2775e8; color: white; border-bottom-right-radius: 4px; }
+        .user { margin-left: auto; background: #2775e8; color: white; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+        .md-paragraph + .md-paragraph { margin-top: 9px; }
+        .md-heading { margin: 4px 0 8px; font-weight: 700; }
+        .md-heading-1 { font-size: 20px; }
+        .md-heading-2 { font-size: 17px; }
+        .md-heading-3 { font-size: 15px; }
+        .message ul, .message ol { margin: 7px 0; padding-left: 22px; }
+        .message li + li { margin-top: 4px; }
+        .message blockquote { margin: 8px 0; padding-left: 11px; border-left: 3px solid #aebdce; color: #58677a; }
+        .message code { padding: 2px 5px; border-radius: 5px; background: #e2e8f0; font-family: Consolas, monospace; font-size: 13px; }
+        .message pre { margin: 9px 0; padding: 11px; overflow: auto; border-radius: 8px; background: #182230; color: #edf3fa; white-space: pre-wrap; }
+        .message pre code { padding: 0; background: transparent; color: inherit; }
         .refs { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 12px; color: #68768a; }
         .composer { display: flex; gap: 10px; padding: 15px; border-top: 1px solid #edf0f4; }
         textarea, input { width: 100%; border: 1px solid #cfd8e5; border-radius: 10px; padding: 11px 12px; font: inherit; outline: none; }
@@ -97,10 +108,131 @@
         return result.data;
     }
 
+    function appendInlineMarkdown(container, text) {
+        const pattern = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g;
+        let lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            container.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+            const token = match[0];
+            const element = document.createElement(token.startsWith('`') ? 'code' : token.startsWith('**') ? 'strong' : 'em');
+            element.textContent = token.startsWith('**') ? token.slice(2, -2) : token.slice(1, -1);
+            container.appendChild(element);
+            lastIndex = pattern.lastIndex;
+        }
+        container.appendChild(document.createTextNode(text.substring(lastIndex)));
+    }
+
+    function renderMarkdown(container, markdown) {
+        const content = String(markdown || '')
+                .replace(/\r\n/g, '\n')
+                .replace(/\\([*_`#>-])/g, '$1')
+                .replace(/\*{3,}/g, '**');
+        const lines = content.split('\n');
+        let list = null;
+        let listType = '';
+        let paragraph = [];
+        let codeLines = [];
+        let inCodeBlock = false;
+
+        function flushParagraph() {
+            if (!paragraph.length) return;
+            const element = document.createElement('div');
+            element.className = 'md-paragraph';
+            appendInlineMarkdown(element, paragraph.join('\n'));
+            container.appendChild(element);
+            paragraph = [];
+        }
+
+        function closeList() {
+            list = null;
+            listType = '';
+        }
+
+        lines.forEach(line => {
+            if (line.trim().startsWith('```')) {
+                flushParagraph();
+                closeList();
+                if (inCodeBlock) {
+                    const pre = document.createElement('pre');
+                    const code = document.createElement('code');
+                    code.textContent = codeLines.join('\n');
+                    pre.appendChild(code);
+                    container.appendChild(pre);
+                    codeLines = [];
+                }
+                inCodeBlock = !inCodeBlock;
+                return;
+            }
+            if (inCodeBlock) {
+                codeLines.push(line);
+                return;
+            }
+            if (!line.trim()) {
+                flushParagraph();
+                closeList();
+                return;
+            }
+
+            const heading = line.match(/^(#{1,3})\s+(.+)$/);
+            if (heading) {
+                flushParagraph();
+                closeList();
+                const element = document.createElement('div');
+                element.className = `md-heading md-heading-${heading[1].length}`;
+                appendInlineMarkdown(element, heading[2]);
+                container.appendChild(element);
+                return;
+            }
+
+            const unorderedItem = line.match(/^[-*+]\s+(.+)$/);
+            const orderedItem = line.match(/^\d+\.\s+(.+)$/);
+            if (unorderedItem || orderedItem) {
+                flushParagraph();
+                const currentType = orderedItem ? 'ol' : 'ul';
+                if (!list || listType !== currentType) {
+                    closeList();
+                    list = document.createElement(currentType);
+                    listType = currentType;
+                    container.appendChild(list);
+                }
+                const item = document.createElement('li');
+                appendInlineMarkdown(item, (orderedItem || unorderedItem)[1]);
+                list.appendChild(item);
+                return;
+            }
+
+            const quote = line.match(/^>\s?(.*)$/);
+            if (quote) {
+                flushParagraph();
+                closeList();
+                const element = document.createElement('blockquote');
+                appendInlineMarkdown(element, quote[1]);
+                container.appendChild(element);
+                return;
+            }
+
+            closeList();
+            paragraph.push(line);
+        });
+        flushParagraph();
+        if (inCodeBlock && codeLines.length) {
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            code.textContent = codeLines.join('\n');
+            pre.appendChild(code);
+            container.appendChild(pre);
+        }
+    }
+
     function appendMessage(type, text, references) {
         const item = document.createElement('div');
         item.className = 'message ' + type;
-        item.textContent = text;
+        if (type === 'assistant') {
+            renderMarkdown(item, text);
+        } else {
+            item.textContent = text;
+        }
         if (references && references.length) {
             const refs = document.createElement('div');
             refs.className = 'refs';

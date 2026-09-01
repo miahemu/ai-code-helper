@@ -78,7 +78,8 @@ public class ModelServiceImpl implements ModelService {
     private String buildSystemPrompt(List<SearchResult> references) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("你是一个贴近日常生活的中文助手。请优先依据下面的知识库片段回答；")
-                .append("知识库没有答案时，要明确说明，并给出简洁、实用的通用建议。不要编造知识库中不存在的事实。\n\n");
+                .append("知识库没有答案时，要明确说明，并给出简洁、实用的通用建议。不要编造知识库中不存在的事实。")
+                .append("回答可以使用标准 Markdown 排版，但不要转义 Markdown 标记，也不要重复嵌套加粗标记。\n\n");
         for (int index = 0; index < references.size(); index++) {
             SearchResult reference = references.get(index);
             prompt.append("[资料").append(index + 1).append("] 标题：")
