@@ -31,6 +31,46 @@ Maven 构建时会将 `frontend` 自动复制到应用的 `static` 目录，因�
 - OpenAI 兼容的 Embedding、Chat Completions 接口
 - 模型、Embedding、Elasticsearch 均通过 `application.yml` 配置
 
+## 核心流程
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant F as 前端页面
+    participant K as KnowledgeController
+    participant KS as KnowledgeService
+    participant E as EmbeddingService
+    participant V as 向量库
+    participant C as ChatController
+    participant MS as ModelService
+    participant LLM as 大模型
+
+    U->>F: 导入文章或上传文档
+    F->>K: POST /api/knowledge/import 或 /upload
+    K->>KS: 解析并保存文档
+    KS->>KS: 文本切片
+    KS->>E: 生成切片向量
+    E-->>KS: 返回向量
+    KS->>V: 保存知识切片和向量
+    V-->>KS: 保存完成
+    KS-->>F: 返回导入结果
+
+    U->>F: 输入问题并设置召回数 topK
+    F->>C: POST /api/chat/ask
+    C->>KS: search(question, topK)
+    KS->>E: 生成问题向量
+    E-->>KS: 返回问题向量
+    KS->>V: 相似度检索 topK 个片段
+    V-->>KS: 返回参考片段
+    KS-->>C: 返回检索结果
+    C->>MS: ask(question, references)
+    MS->>LLM: 组装知识片段并请求回答
+    LLM-->>MS: 返回模型回答
+    MS-->>C: 返回回答内容
+    C-->>F: 返回回答和引用
+    F-->>U: 展示答案
+```
+
 ## 运行环境
 
 - JDK 8+
@@ -93,18 +133,7 @@ elasticsearch:
 
 服务会在首次导入文章时自动创建索引。当前使用兼容 Elasticsearch 8.x 的 `dense_vector` 映射和 `cosineSimilarity` 脚本评分，不绑定特定 Java ES 客户端版本。
 
-## 主要接口
-
-- `POST /api/knowledge/import`：粘贴文章导入
-- `POST /api/knowledge/upload`：上传并解析 `txt` / `md` / `pdf` / `doc` / `docx`
-- `GET /api/knowledge/documents`：查询当前文档列表
-- `DELETE /api/knowledge/documents/{documentId}`：删除文档及其全部切片
-- `POST /api/knowledge/documents/{documentId}/reindex`：使用保存的原文重新生成切片和向量
-- `GET /api/knowledge/search?question=雨天怎么晾衣服&topK=4`：独立验证检索
-- `POST /api/chat/ask`：RAG 对答
-- `GET /api/knowledge/status`：查看当前运行模式
-
-示例：
+## 示例：
 
 ```bash
 curl -X POST http://localhost:3859/api/knowledge/import \
@@ -117,7 +146,3 @@ curl -X POST http://localhost:3859/api/chat/ask \
 ```
 
 重新索引时会先完成新切片的向量生成，再删除并替换旧切片。启用 Elasticsearch 后，删除操作通过 `_delete_by_query` 按 `documentId` 清理索引数据。
-
-## 下一阶段建议
-
-后续可按顺序增加：文档元数据持久化、批量导入、混合检索（BM25 + 向量）、重排模型、对话历史，最后再评估 GraphRAG/LightRAG。
