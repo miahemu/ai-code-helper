@@ -25,7 +25,7 @@
 mvn spring-boot:run
 ```
 
-打开：<http://localhost:8080>
+打开：<http://localhost:3859>
 
 默认配置：
 

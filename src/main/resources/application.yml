@@ -1,0 +1,43 @@
+server:
+  port: 3859
+
+spring:
+  application:
+    name: ai-rag-demo
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+http:
+  connect-timeout: 10000
+  read-timeout: 60000
+
+ai:
+  chat:
+    # OpenAI 兼容的 Chat Completions 完整地址
+    url: "xxxxxxxx"
+    api-key: "xxxxxxxxx"
+    model: "DeepSeek-V4-Pro"
+  embedding:
+    # OpenAI 兼容的 embeddings 完整地址；留空时使用本地 256 维哈希向量
+    url: ""
+    api-key: ""
+    model: ""
+    dimensions: 256
+  chunk:
+    # 文档切片大小
+    size: 500
+    # 相邻文档切片重叠长度
+    overlap: 80
+
+elasticsearch:
+  # 首次启动建议保持 false，跑通后再改为 true 接测试线 ES
+  enabled: false
+  # Elasticsearch 服务地址
+  url: "http://localhost:9200"
+  # Elasticsearch 用户名和密码；未开启认证时保持为空
+  username: ""
+  password: ""
+  # 知识库向量索引名称
+  index-name: "ai_knowledge_chunk"
