@@ -2,6 +2,24 @@
 
 这是第一阶段的小型 Demo，目标是先把“文章切分 → 向量化 → 检索 → 结合模型回答”跑通。
 
+## 项目结构
+
+```text
+ai-rag-demo
+├─ frontend                    前端静态资源
+│  ├─ index.html               页面结构
+│  ├─ css/index.css            页面样式
+│  └─ js
+│     ├─ api.js                后端接口请求封装
+│     ├─ markdown.js           Markdown 安全渲染
+│     └─ app.js                页面交互和业务逻辑
+├─ src/main/java               Spring Boot 后端代码
+├─ src/main/resources          后端配置文件
+└─ pom.xml                     Maven 配置
+```
+
+Maven 构建时会将 `frontend` 自动复制到应用的 `static` 目录，因此前后端保存在同一个项目中，运行和打包仍只需要 Spring Boot。
+
 ## 已实现
 
 - 一个可直接访问的生活化对答网页
