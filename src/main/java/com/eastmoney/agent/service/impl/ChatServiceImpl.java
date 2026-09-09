@@ -23,16 +23,14 @@ import java.util.List;
 @Service
 public class ChatServiceImpl implements ChatService {
 
-    /** 知识库检索服务 */
     @Autowired
     private KnowledgeService knowledgeService;
 
-    /** 大模型调用服务 */
     @Autowired
     private ModelService modelService;
 
     /**
-     * 检索与用户问题相关的知识片段，并调用模型生成最终回答。
+     * 检索与用户问题相关的知识片段，并调用模型生成最终回答
      *
      * @param request AI 对答请求参数
      * @return AI 对答结果

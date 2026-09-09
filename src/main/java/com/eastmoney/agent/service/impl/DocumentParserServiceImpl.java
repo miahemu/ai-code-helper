@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 public class DocumentParserServiceImpl implements DocumentParserService {
 
     /**
-     * 根据文件扩展名解析文档正文。
+     * 根据文件扩展名解析文档正文
      *
      * @param file 上传文件
      * @return 文档解析结果

@@ -1,5 +1,5 @@
 /**
- * 统一处理后端接口响应。
+ * 统一处理后端接口响应
  *
  * @param {string} url 接口地址
  * @param {RequestInit} options 请求参数

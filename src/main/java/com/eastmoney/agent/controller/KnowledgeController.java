@@ -51,7 +51,7 @@ public class KnowledgeController {
     }
 
     /**
-     * 上传并解析 TXT、Markdown、PDF 或 Word 文档。
+     * 上传并解析 TXT、Markdown、PDF 或 Word 文档
      */
     @PostMapping("upload")
     public RestResponse<?> upload(@RequestPart("file") MultipartFile file) {
@@ -67,7 +67,7 @@ public class KnowledgeController {
     }
 
     /**
-     * 查询当前已导入的文档。
+     * 查询当前已导入的文档
      */
     @GetMapping("documents")
     public RestResponse<?> listDocuments() {
@@ -76,7 +76,7 @@ public class KnowledgeController {
     }
 
     /**
-     * 删除文档及其全部知识切片。
+     * 删除文档及其全部知识切片
      */
     @DeleteMapping("documents/{documentId}")
     public RestResponse<?> deleteDocument(@PathVariable String documentId) {
@@ -92,7 +92,7 @@ public class KnowledgeController {
     }
 
     /**
-     * 使用保存的原始文本重新生成文档切片和向量索引。
+     * 使用保存的原始文本重新生成文档切片和向量索引
      */
     @PostMapping("documents/{documentId}/reindex")
     public RestResponse<?> reindexDocument(@PathVariable String documentId) {

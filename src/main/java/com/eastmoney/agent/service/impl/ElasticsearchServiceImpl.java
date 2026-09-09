@@ -51,7 +51,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
     private RestTemplate restTemplate;
 
     /**
-     * 批量保存知识切片，并在写入完成后刷新索引。
+     * 批量保存知识切片，并在写入完成后刷新索引
      *
      * @param chunks 待保存的知识切片
      */
@@ -71,7 +71,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
     }
 
     /**
-     * 使用 cosineSimilarity 脚本执行向量相似度检索。
+     * 使用 cosineSimilarity 脚本执行向量相似度检索
      *
      * @param queryVector 问题向量
      * @param topK 召回片段数量
@@ -101,7 +101,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
     }
 
     /**
-     * 根据文档标识删除其全部知识切片，并立即刷新索引。
+     * 根据文档标识删除其全部知识切片，并立即刷新索引
      *
      * @param documentId 文档唯一标识
      */
@@ -115,7 +115,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
     }
 
     /**
-     * 检查向量索引是否存在，不存在时按照当前向量维度创建索引映射。
+     * 检查向量索引是否存在，不存在时按照当前向量维度创建索引映射
      */
     private void ensureIndex() {
         try {
@@ -144,7 +144,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
     }
 
     /**
-     * 将 Elasticsearch 查询响应转换为业务检索结果。
+     * 将 Elasticsearch 查询响应转换为业务检索结果
      *
      * @param response Elasticsearch 查询响应
      * @return 知识库检索结果
@@ -173,7 +173,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
     }
 
     /**
-     * 统一发送 Elasticsearch HTTP 请求，并处理基础认证和服务地址。
+     * 统一发送 Elasticsearch HTTP 请求，并处理基础认证和服务地址
      *
      * @param method HTTP 请求方法
      * @param path Elasticsearch API 路径

@@ -26,7 +26,7 @@ public enum DocumentTypeEnum {
     }
 
     /**
-     * 根据文件名识别文档类型。
+     * 根据文件名识别文档类型
      *
      * @param filename 文件名
      * @return 文档类型

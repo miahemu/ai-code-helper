@@ -37,7 +37,7 @@ public class ModelServiceImpl implements ModelService {
     private RestTemplate restTemplate;
 
     /**
-     * 根据用户问题和知识库检索结果生成回答。
+     * 根据用户问题和知识库检索结果生成回答
      *
      * @param question 用户问题
      * @param references 知识库检索结果
@@ -70,7 +70,7 @@ public class ModelServiceImpl implements ModelService {
     }
 
     /**
-     * 将召回的知识片段组装为模型系统提示词。
+     * 将召回的知识片段组装为模型系统提示词
      *
      * @param references 知识库检索结果
      * @return 系统提示词
@@ -90,7 +90,7 @@ public class ModelServiceImpl implements ModelService {
     }
 
     /**
-     * 从 OpenAI Chat Completions 响应中解析回答内容。
+     * 从 OpenAI Chat Completions 响应中解析回答内容
      *
      * @param response 模型接口响应
      * @return 回答内容

@@ -69,7 +69,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private DocumentParserService documentParserService;
 
     /**
-     * 将文章切分并生成向量，然后写入当前启用的知识库。
+     * 将文章切分并生成向量，然后写入当前启用的知识库
      *
      * @param request 知识库文章导入参数
      * @return 文档导入结果
@@ -86,7 +86,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 解析上传文件并导入知识库。
+     * 解析上传文件并导入知识库
      *
      * @param file 上传文件
      * @return 文档导入结果
@@ -106,7 +106,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 查询当前服务运行期间导入的文档，并按最近索引时间倒序返回。
+     * 查询当前服务运行期间导入的文档，并按最近索引时间倒序返回
      *
      * @return 文档管理列表
      */
@@ -129,7 +129,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 删除文档元数据以及该文档对应的全部知识切片。
+     * 删除文档元数据以及该文档对应的全部知识切片
      *
      * @param documentId 文档唯一标识
      */
@@ -144,7 +144,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 使用内存中保存的原始文本重新切分并生成向量，成功后替换旧切片。
+     * 使用内存中保存的原始文本重新切分并生成向量，成功后替换旧切片
      *
      * @param documentId 文档唯一标识
      * @return 重新索引结果
@@ -171,7 +171,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 根据问题向量检索相似知识片段，并限制最大召回数量。
+     * 根据问题向量检索相似知识片段，并限制最大召回数量
      *
      * @param question 用户问题
      * @param topK 召回片段数量
@@ -200,7 +200,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 获取向量生成和向量库存储状态。
+     * 获取向量生成和向量库存储状态
      *
      * @return 系统运行状态
      */
@@ -214,7 +214,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 获取当前知识库存储模式。
+     * 获取当前知识库存储模式
      *
      * @return elasticsearch 或 memory
      */
@@ -224,7 +224,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 完成首次文档切片和索引，索引成功后再保存文档元数据。
+     * 完成首次文档切片和索引，索引成功后再保存文档元数据
      */
     private KnowledgeImportRespVO indexDocument(KnowledgeDocument document) {
         List<KnowledgeChunk> chunks = buildChunks(document);
@@ -242,7 +242,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 根据原文重新生成完整切片列表；全部向量成功生成后才会进入存储替换步骤。
+     * 根据原文重新生成完整切片列表；全部向量成功生成后才会进入存储替换步骤
      */
     private List<KnowledgeChunk> buildChunks(KnowledgeDocument document) {
         List<String> contents = TextChunkUtil.chunk(document.getContent(), chunkSize, chunkOverlap);
@@ -261,7 +261,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 将切片写入当前启用的向量存储。
+     * 将切片写入当前启用的向量存储
      */
     private void saveChunks(List<KnowledgeChunk> chunks) {
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
@@ -274,7 +274,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 删除指定文档在当前向量存储中的全部切片。
+     * 删除指定文档在当前向量存储中的全部切片
      */
     private void deleteChunks(String documentId) {
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {

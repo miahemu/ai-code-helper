@@ -49,7 +49,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
 
     /**
      * 生成文本向量。配置远程 Embedding 服务时调用远程接口，
-     * 否则使用本地哈希向量保证演示功能可运行。
+     * 否则使用本地哈希向量保证演示功能可运行
      *
      * @param text 待向量化文本
      * @return 文本向量
@@ -81,7 +81,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     }
 
     /**
-     * 从 OpenAI Embeddings 响应中解析第一条向量数据。
+     * 从 OpenAI Embeddings 响应中解析第一条向量数据
      *
      * @param response Embedding 接口响应
      * @return 向量数据
@@ -106,7 +106,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     }
 
     /**
-     * 获取当前向量生成模式。
+     * 获取当前向量生成模式
      *
      * @return remote 或 local-hash
      */
