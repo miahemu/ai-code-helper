@@ -31,6 +31,15 @@ ai:
     # 相邻文档切片重叠长度
     overlap: 80
 
+agent:
+  # true： 新Agent流程
+  # false： 固定 RAG 流程
+  enabled: false
+  # 单次任务允许的最大模型调用轮数，避免异常情况下无限循环
+  max-steps: 5
+  # 是否记录 Agent 执行轨迹，当前仅预留配置
+  trace-enabled: true
+
 elasticsearch:
   # 首次启动建议保持 false，跑通后再改为 true 接测试线 ES
   enabled: false
