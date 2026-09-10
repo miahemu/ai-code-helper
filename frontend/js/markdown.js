@@ -18,16 +18,95 @@ function appendInlineMarkdown(container, text) {
 }
 
 /**
+ * 兼容模型偶尔返回的转义符、HTML 空格和挤在同一行的表格内容。
+ */
+function normalizeMarkdown(markdown) {
+    const content = String(markdown || '')
+            .replace(/\r\n?/g, '\n')
+            .replace(/(?:&#x20;|&#32;|&nbsp;)/gi, ' ')
+            .replace(/\\([\\*_`#>|-])/g, '$1')
+            .replace(/\*{4,}/g, '**');
+
+    return content.split('\n').map(line => {
+        if (/\|\s+\|\s*:?-{3,}/.test(line)) {
+            return line.replace(/\|\s+\|/g, '|\n|');
+        }
+        return line;
+    }).join('\n').replace(/([。；;])\s+[-*+]\s+/g, '$1\n- ');
+}
+
+function parseTableRow(line) {
+    let value = line.trim();
+    if (value.startsWith('|')) {
+        value = value.substring(1);
+    }
+    if (value.endsWith('|')) {
+        value = value.substring(0, value.length - 1);
+    }
+    return value.split('|').map(cell => cell.trim());
+}
+
+function isTableSeparator(line) {
+    const cells = parseTableRow(line);
+    return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
+}
+
+function getTableAlignment(separator) {
+    const left = separator.startsWith(':');
+    const right = separator.endsWith(':');
+    if (left && right) {
+        return 'center';
+    }
+    return right ? 'right' : 'left';
+}
+
+function appendTable(container, lines, startIndex) {
+    const headers = parseTableRow(lines[startIndex]);
+    const separators = parseTableRow(lines[startIndex + 1]);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'md-table-wrapper';
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+
+    headers.forEach((header, index) => {
+        const cell = document.createElement('th');
+        cell.style.textAlign = getTableAlignment(separators[index] || '---');
+        appendInlineMarkdown(cell, header);
+        headRow.appendChild(cell);
+    });
+    head.appendChild(headRow);
+    table.appendChild(head);
+
+    const body = document.createElement('tbody');
+    let endIndex = startIndex + 2;
+    while (endIndex < lines.length && lines[endIndex].trim()
+            && lines[endIndex].includes('|')) {
+        const values = parseTableRow(lines[endIndex]);
+        const row = document.createElement('tr');
+        headers.forEach((header, index) => {
+            const cell = document.createElement('td');
+            cell.style.textAlign = getTableAlignment(separators[index] || '---');
+            appendInlineMarkdown(cell, values[index] || '');
+            row.appendChild(cell);
+        });
+        body.appendChild(row);
+        endIndex++;
+    }
+    table.appendChild(body);
+    wrapper.appendChild(table);
+    container.appendChild(wrapper);
+    return endIndex - 1;
+}
+
+/**
  * 安全渲染模型返回的常用 Markdown，不执行其中的 HTML。
  *
  * @param {HTMLElement} container 渲染容器
  * @param {string} markdown Markdown 文本
  */
 export function renderMarkdown(container, markdown) {
-    const content = String(markdown || '')
-            .replace(/\r\n/g, '\n')
-            .replace(/\\([*_`#>-])/g, '$1')
-            .replace(/\*{3,}/g, '**');
+    const content = normalizeMarkdown(markdown);
     const lines = content.split('\n');
     let list = null;
     let listType = '';
@@ -51,7 +130,8 @@ export function renderMarkdown(container, markdown) {
         listType = '';
     }
 
-    lines.forEach(line => {
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
         if (line.trim().startsWith('```')) {
             flushParagraph();
             closeList();
@@ -64,16 +144,31 @@ export function renderMarkdown(container, markdown) {
                 codeLines = [];
             }
             inCodeBlock = !inCodeBlock;
-            return;
+            continue;
         }
         if (inCodeBlock) {
             codeLines.push(line);
-            return;
+            continue;
         }
         if (!line.trim()) {
             flushParagraph();
             closeList();
-            return;
+            continue;
+        }
+
+        if (line.includes('|') && lineIndex + 1 < lines.length
+                && isTableSeparator(lines[lineIndex + 1])) {
+            flushParagraph();
+            closeList();
+            lineIndex = appendTable(container, lines, lineIndex);
+            continue;
+        }
+
+        if (/^\s*(?:-{3,}|_{3,}|\*{3,})\s*$/.test(line)) {
+            flushParagraph();
+            closeList();
+            container.appendChild(document.createElement('hr'));
+            continue;
         }
 
         const heading = line.match(/^(#{1,3})\s+(.+)$/);
@@ -84,7 +179,7 @@ export function renderMarkdown(container, markdown) {
             element.className = `md-heading md-heading-${heading[1].length}`;
             appendInlineMarkdown(element, heading[2]);
             container.appendChild(element);
-            return;
+            continue;
         }
 
         const unorderedItem = line.match(/^[-*+]\s+(.+)$/);
@@ -101,7 +196,7 @@ export function renderMarkdown(container, markdown) {
             const item = document.createElement('li');
             appendInlineMarkdown(item, (orderedItem || unorderedItem)[1]);
             list.appendChild(item);
-            return;
+            continue;
         }
 
         const quote = line.match(/^>\s?(.*)$/);
@@ -111,12 +206,12 @@ export function renderMarkdown(container, markdown) {
             const element = document.createElement('blockquote');
             appendInlineMarkdown(element, quote[1]);
             container.appendChild(element);
-            return;
+            continue;
         }
 
         closeList();
         paragraph.push(line);
-    });
+    }
     flushParagraph();
 
     if (inCodeBlock && codeLines.length) {
