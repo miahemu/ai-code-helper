@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: ai-rag-demo
+  profiles:
+    active: local
   servlet:
     multipart:
       max-file-size: 10MB
@@ -30,11 +32,16 @@ ai:
     size: 500
     # 相邻文档切片重叠长度
     overlap: 80
+  retrieval:
+    # 低于该相似度的切片不参与回答，也不会在页面展示
+    min-score: 0.20
+    # 本地哈希向量缺少语义能力，额外要求问题与切片存在真实关键词重合
+    local-keyword-filter-enabled: true
 
 agent:
   # true： 新Agent流程
   # false： 固定 RAG 流程
-  enabled: false
+  enabled: true
   # 单次任务允许的最大模型调用轮数，避免异常情况下无限循环
   max-steps: 5
   # 是否记录 Agent 执行轨迹，当前仅预留配置

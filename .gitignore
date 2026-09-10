@@ -2,5 +2,5 @@ target/
 .idea/
 *.iml
 logs/
-application.yml
+application-local.yml
 
