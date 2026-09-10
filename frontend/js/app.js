@@ -476,8 +476,8 @@ async function deleteDocument() {
     elements.deleteDialogConfirm.textContent = '正在删除…';
     try {
         await request(
-                `/api/knowledge/documents/${encodeURIComponent(documentInfo.documentId)}`,
-                {method: 'DELETE'});
+                `/api/knowledge/documents/${encodeURIComponent(documentInfo.documentId)}/delete`,
+                {method: 'POST'});
         elements.deleteDialog.hidden = true;
         document.body.classList.remove('delete-dialog-open');
         pendingDeleteDocument = null;
