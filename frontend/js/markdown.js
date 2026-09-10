@@ -60,6 +60,33 @@ function getTableAlignment(separator) {
     return right ? 'right' : 'left';
 }
 
+function isDocumentHeading(line) {
+    if (line.length > 32 || /[。！？；;]$/.test(line)) {
+        return false;
+    }
+    return /^(?:第[一二三四五六七八九十百\d]+[章节篇部分]|[一二三四五六七八九十百]+[、.．]|[（(]?[一二三四五六七八九十百\d]+[)）、.．])/.test(line)
+            || /(?:规范|流程|要求|说明|注意事项|操作建议)$/.test(line);
+}
+
+/**
+ * 将 Office、PDF 提取出的纯文本整理成适合阅读的 Markdown 结构。
+ */
+function normalizeDocumentContent(content) {
+    return normalizeMarkdown(content).split('\n').map(line => {
+        const trimmed = line.trim();
+        if (!trimmed || /^(?:#{1,3}|[-*+]\s|\d+\.\s|>|```|\|)/.test(trimmed)) {
+            return line;
+        }
+        if (/^[•●▪◦]\s*/.test(trimmed)) {
+            return `- ${trimmed.replace(/^[•●▪◦]\s*/, '')}`;
+        }
+        if (isDocumentHeading(trimmed)) {
+            return `### ${trimmed}`;
+        }
+        return line;
+    }).join('\n');
+}
+
 function appendTable(container, lines, startIndex) {
     const headers = parseTableRow(lines[startIndex]);
     const separators = parseTableRow(lines[startIndex + 1]);
@@ -221,4 +248,14 @@ export function renderMarkdown(container, markdown) {
         pre.appendChild(code);
         container.appendChild(pre);
     }
+}
+
+/**
+ * 以阅读模式渲染文档原文或引用片段，兼容纯文本和 Markdown 内容。
+ *
+ * @param {HTMLElement} container 渲染容器
+ * @param {string} content 文档或片段内容
+ */
+export function renderDocumentContent(container, content) {
+    renderMarkdown(container, normalizeDocumentContent(content));
 }

@@ -1,5 +1,5 @@
 import {request} from './api.js';
-import {renderMarkdown} from './markdown.js';
+import {renderDocumentContent, renderMarkdown} from './markdown.js';
 
 const elements = {
     askButton: document.getElementById('askBtn'),
@@ -69,7 +69,8 @@ function openContentViewer(type, title, meta, content) {
     elements.contentViewerType.textContent = type;
     elements.contentViewerTitle.textContent = title;
     elements.contentViewerMeta.textContent = meta;
-    elements.contentViewerBody.textContent = content || '暂无内容';
+    elements.contentViewerBody.replaceChildren();
+    renderDocumentContent(elements.contentViewerBody, content || '暂无内容');
     elements.contentViewer.hidden = false;
     document.body.classList.add('content-viewer-open');
     elements.contentViewerClose.focus();

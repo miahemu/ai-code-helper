@@ -410,7 +410,8 @@ button:disabled {
     border-radius: 9px;
 }
 
-.message table {
+.message table,
+.content-viewer-body table {
     width: 100%;
     border-collapse: collapse;
     background: white;
@@ -418,7 +419,9 @@ button:disabled {
 }
 
 .message th,
-.message td {
+.message td,
+.content-viewer-body th,
+.content-viewer-body td {
     min-width: 110px;
     padding: 9px 11px;
     border-right: 1px solid #e5eaf1;
@@ -426,18 +429,22 @@ button:disabled {
     vertical-align: top;
 }
 
-.message th {
+.message th,
+.content-viewer-body th {
     color: #344158;
     background: #f1f4f9;
     font-weight: 750;
 }
 
 .message th:last-child,
-.message td:last-child {
+.message td:last-child,
+.content-viewer-body th:last-child,
+.content-viewer-body td:last-child {
     border-right: 0;
 }
 
-.message tbody tr:last-child td {
+.message tbody tr:last-child td,
+.content-viewer-body tbody tr:last-child td {
     border-bottom: 0;
 }
 
@@ -1022,8 +1029,64 @@ body.delete-dialog-open {
     font-family: inherit;
     font-size: 14px;
     line-height: 1.75;
-    white-space: pre-wrap;
     word-break: break-word;
+}
+
+.content-viewer-body .md-heading {
+    margin: 18px 0 8px;
+    padding-left: 10px;
+    border-left: 3px solid #9bb0ef;
+    color: #273650;
+}
+
+.content-viewer-body .md-heading:first-child {
+    margin-top: 0;
+}
+
+.content-viewer-body .md-paragraph {
+    margin: 0 0 10px;
+    white-space: pre-wrap;
+}
+
+.content-viewer-body ul,
+.content-viewer-body ol {
+    margin: 8px 0 13px;
+    padding-left: 24px;
+}
+
+.content-viewer-body li + li {
+    margin-top: 5px;
+}
+
+.content-viewer-body hr {
+    height: 1px;
+    margin: 16px 0;
+    border: 0;
+    background: #dce2eb;
+}
+
+.content-viewer-body code {
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: #e7ebf2;
+    font-family: Consolas, monospace;
+    font-size: 13px;
+}
+
+.content-viewer-body pre {
+    margin: 10px 0;
+    padding: 13px;
+    overflow: auto;
+    border-radius: 9px;
+    color: #edf3fa;
+    background: #182230;
+    white-space: pre-wrap;
+}
+
+.content-viewer-body pre code {
+    padding: 0;
+    color: inherit;
+    background: transparent;
 }
 
 .delete-dialog {
