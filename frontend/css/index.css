@@ -396,6 +396,51 @@ button:disabled {
     background: transparent;
 }
 
+.message hr {
+    height: 1px;
+    margin: 14px 0;
+    border: 0;
+    background: #dce2eb;
+}
+
+.md-table-wrapper {
+    margin: 10px 0;
+    overflow-x: auto;
+    border: 1px solid #dce3ed;
+    border-radius: 9px;
+}
+
+.message table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    font-size: 13px;
+}
+
+.message th,
+.message td {
+    min-width: 110px;
+    padding: 9px 11px;
+    border-right: 1px solid #e5eaf1;
+    border-bottom: 1px solid #e5eaf1;
+    vertical-align: top;
+}
+
+.message th {
+    color: #344158;
+    background: #f1f4f9;
+    font-weight: 750;
+}
+
+.message th:last-child,
+.message td:last-child {
+    border-right: 0;
+}
+
+.message tbody tr:last-child td {
+    border-bottom: 0;
+}
+
 .references {
     display: flex;
     flex-wrap: wrap;
@@ -407,10 +452,16 @@ button:disabled {
 
 .reference-chip {
     padding: 4px 7px;
+    border: 0;
     border-radius: 6px;
     color: #596981;
     background: #e9eef6;
     font-size: 11px;
+}
+
+.reference-chip:hover {
+    color: var(--primary);
+    background: #dfe6fb;
 }
 
 .composer {
@@ -806,11 +857,22 @@ button:disabled {
 
 .document-name {
     min-width: 0;
+    padding: 0;
     overflow: hidden;
+    border: 0;
+    color: inherit;
+    background: transparent;
     font-size: 13px;
     font-weight: 700;
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.document-name:hover {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .document-meta {
@@ -855,6 +917,280 @@ button:disabled {
 
 .empty-state.compact {
     padding: 25px 10px;
+}
+
+body.content-viewer-open {
+    overflow: hidden;
+}
+
+body.delete-dialog-open {
+    overflow: hidden;
+}
+
+.content-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    padding: 24px;
+    place-items: center;
+}
+
+.content-viewer[hidden] {
+    display: none;
+}
+
+.content-viewer-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(22, 31, 49, 0.42);
+    cursor: default;
+}
+
+.content-viewer-dialog {
+    position: relative;
+    display: grid;
+    width: min(760px, 100%);
+    max-height: min(760px, calc(100vh - 48px));
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid rgba(218, 225, 236, 0.95);
+    border-radius: 18px;
+    background: white;
+    box-shadow: 0 24px 70px rgba(23, 32, 51, 0.25);
+}
+
+.content-viewer-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid var(--line);
+}
+
+.content-viewer-type {
+    margin-bottom: 5px;
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.content-viewer-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.content-viewer-meta {
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.content-viewer-close {
+    display: grid;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: #637087;
+    background: white;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.content-viewer-close:hover {
+    border-color: #b9c6e8;
+    color: var(--primary);
+    background: #f8faff;
+}
+
+.content-viewer-body {
+    min-height: 180px;
+    margin: 0;
+    padding: 22px;
+    overflow: auto;
+    color: #344158;
+    background: #f8f9fc;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.delete-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    padding: 24px;
+    place-items: center;
+}
+
+.delete-dialog[hidden] {
+    display: none;
+}
+
+.delete-dialog-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(22, 31, 49, 0.46);
+    cursor: default;
+    backdrop-filter: blur(2px);
+}
+
+.delete-dialog-panel {
+    position: relative;
+    width: min(420px, 100%);
+    padding: 25px;
+    border: 1px solid rgba(218, 225, 236, 0.95);
+    border-radius: 18px;
+    background: white;
+    box-shadow: 0 24px 70px rgba(23, 32, 51, 0.25);
+    animation: delete-dialog-enter 0.18s ease-out;
+}
+
+.delete-dialog-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: grid;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    color: #8792a5;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.delete-dialog-close:hover:not(:disabled) {
+    color: #4f5b70;
+    background: #f2f4f8;
+}
+
+.delete-dialog-icon {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 16px;
+    place-items: center;
+    border-radius: 13px;
+    color: var(--danger);
+    background: #fff0f0;
+}
+
+.delete-dialog-icon svg {
+    width: 23px;
+    height: 23px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.delete-dialog-panel h2 {
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+}
+
+.delete-dialog-panel > p {
+    margin: 7px 0 16px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.delete-dialog-target {
+    display: flex;
+    min-width: 0;
+    padding: 12px 13px;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #edf0f4;
+    border-radius: 10px;
+    background: #f8f9fb;
+}
+
+.delete-dialog-document-name {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.delete-dialog-document-meta {
+    color: #8994a6;
+    font-size: 11px;
+}
+
+.delete-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    margin-top: 22px;
+}
+
+.dialog-button {
+    min-width: 88px;
+    height: 38px;
+    padding: 0 15px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.dialog-button.secondary {
+    border: 1px solid #d8dfeb;
+    color: #526078;
+    background: white;
+}
+
+.dialog-button.secondary:hover:not(:disabled) {
+    border-color: #b9c6e8;
+    color: var(--primary);
+    background: #f8faff;
+}
+
+.dialog-button.danger {
+    border: 1px solid #ce3f3f;
+    color: white;
+    background: var(--danger);
+    box-shadow: 0 6px 15px rgba(216, 74, 74, 0.2);
+}
+
+.dialog-button.danger:hover:not(:disabled) {
+    border-color: #c23b3b;
+    background: #c94040;
+}
+
+@keyframes delete-dialog-enter {
+    from {
+        transform: translateY(8px) scale(0.98);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
 }
 
 .toast {
@@ -946,5 +1282,37 @@ button:disabled {
 
     .knowledge-content {
         padding: 15px;
+    }
+
+    .content-viewer {
+        padding: 12px;
+    }
+
+    .content-viewer-dialog {
+        max-height: calc(100vh - 24px);
+        border-radius: 14px;
+    }
+
+    .content-viewer-header,
+    .content-viewer-body {
+        padding: 16px;
+    }
+
+    .delete-dialog {
+        padding: 16px;
+    }
+
+    .delete-dialog-panel {
+        padding: 22px 20px 20px;
+        border-radius: 15px;
+    }
+
+    .delete-dialog-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .dialog-button {
+        width: 100%;
     }
 }

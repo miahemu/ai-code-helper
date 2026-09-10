@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="基于知识库检索的智能问答应用">
     <title>智能知识库</title>
-    <link rel="stylesheet" href="/css/index.css">
+    <link rel="stylesheet" href="/css/index.css?v=20260910">
 </head>
 <body>
 <div class="app-shell">
@@ -125,7 +125,49 @@
     </main>
 </div>
 
+<div id="contentViewer" class="content-viewer" hidden>
+    <button id="contentViewerBackdrop" class="content-viewer-backdrop" type="button"
+            aria-label="关闭内容查看"></button>
+    <section class="content-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="contentViewerTitle">
+        <header class="content-viewer-header">
+            <div>
+                <div id="contentViewerType" class="content-viewer-type">文档原文</div>
+                <h2 id="contentViewerTitle"></h2>
+                <div id="contentViewerMeta" class="content-viewer-meta"></div>
+            </div>
+            <button id="contentViewerClose" class="content-viewer-close" type="button" aria-label="关闭">×</button>
+        </header>
+        <pre id="contentViewerBody" class="content-viewer-body"></pre>
+    </section>
+</div>
+
+<div id="deleteDialog" class="delete-dialog" hidden>
+    <button id="deleteDialogBackdrop" class="delete-dialog-backdrop" type="button"
+            aria-label="取消删除"></button>
+    <section class="delete-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle"
+             aria-describedby="deleteDialogDescription">
+        <button id="deleteDialogClose" class="delete-dialog-close" type="button" aria-label="关闭">×</button>
+        <div class="delete-dialog-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 8v5"></path>
+                <path d="M12 17h.01"></path>
+                <path d="M10.3 3.8 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z"></path>
+            </svg>
+        </div>
+        <h2 id="deleteDialogTitle">删除文档？</h2>
+        <p id="deleteDialogDescription">删除后将无法恢复。</p>
+        <div class="delete-dialog-target">
+            <span id="deleteDialogDocumentName" class="delete-dialog-document-name"></span>
+            <span id="deleteDialogDocumentMeta" class="delete-dialog-document-meta"></span>
+        </div>
+        <div class="delete-dialog-actions">
+            <button id="deleteDialogCancel" class="dialog-button secondary" type="button">取消</button>
+            <button id="deleteDialogConfirm" class="dialog-button danger" type="button">确认删除</button>
+        </div>
+    </section>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="/js/app.js"></script>
+<script type="module" src="/js/app.js?v=20260910"></script>
 </body>
 </html>

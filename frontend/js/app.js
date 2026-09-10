@@ -9,6 +9,20 @@ const elements = {
     clearChatButton: document.getElementById('clearChatBtn'),
     content: document.getElementById('content'),
     contentCount: document.getElementById('contentCount'),
+    contentViewer: document.getElementById('contentViewer'),
+    contentViewerBackdrop: document.getElementById('contentViewerBackdrop'),
+    contentViewerBody: document.getElementById('contentViewerBody'),
+    contentViewerClose: document.getElementById('contentViewerClose'),
+    contentViewerMeta: document.getElementById('contentViewerMeta'),
+    contentViewerTitle: document.getElementById('contentViewerTitle'),
+    contentViewerType: document.getElementById('contentViewerType'),
+    deleteDialog: document.getElementById('deleteDialog'),
+    deleteDialogBackdrop: document.getElementById('deleteDialogBackdrop'),
+    deleteDialogCancel: document.getElementById('deleteDialogCancel'),
+    deleteDialogClose: document.getElementById('deleteDialogClose'),
+    deleteDialogConfirm: document.getElementById('deleteDialogConfirm'),
+    deleteDialogDocumentMeta: document.getElementById('deleteDialogDocumentMeta'),
+    deleteDialogDocumentName: document.getElementById('deleteDialogDocumentName'),
     documentCount: document.getElementById('documentCount'),
     documentList: document.getElementById('documentList'),
     documentSearch: document.getElementById('documentSearch'),
@@ -29,6 +43,10 @@ const elements = {
 
 let documents = [];
 let asking = false;
+let contentViewerTrigger = null;
+let deleteDialogTrigger = null;
+let deleting = false;
+let pendingDeleteDocument = null;
 let selectedUploadFile = null;
 let toastTimer = null;
 
@@ -44,6 +62,49 @@ function showToast(message, isError = false) {
 function setOperationMessage(message, isError = false) {
     elements.operationMessage.textContent = message;
     elements.operationMessage.className = `operation-message${isError ? ' error' : ''}`;
+}
+
+function openContentViewer(type, title, meta, content) {
+    contentViewerTrigger = document.activeElement;
+    elements.contentViewerType.textContent = type;
+    elements.contentViewerTitle.textContent = title;
+    elements.contentViewerMeta.textContent = meta;
+    elements.contentViewerBody.textContent = content || '暂无内容';
+    elements.contentViewer.hidden = false;
+    document.body.classList.add('content-viewer-open');
+    elements.contentViewerClose.focus();
+}
+
+function closeContentViewer() {
+    elements.contentViewer.hidden = true;
+    document.body.classList.remove('content-viewer-open');
+    if (contentViewerTrigger && typeof contentViewerTrigger.focus === 'function') {
+        contentViewerTrigger.focus();
+    }
+    contentViewerTrigger = null;
+}
+
+function openDeleteDialog(documentInfo) {
+    deleteDialogTrigger = document.activeElement;
+    pendingDeleteDocument = documentInfo;
+    elements.deleteDialogDocumentName.textContent = documentInfo.title;
+    elements.deleteDialogDocumentMeta.textContent = `${documentInfo.chunkCount} 个知识切片将一并删除`;
+    elements.deleteDialog.hidden = false;
+    document.body.classList.add('delete-dialog-open');
+    elements.deleteDialogCancel.focus();
+}
+
+function closeDeleteDialog() {
+    if (deleting) {
+        return;
+    }
+    elements.deleteDialog.hidden = true;
+    document.body.classList.remove('delete-dialog-open');
+    pendingDeleteDocument = null;
+    if (deleteDialogTrigger && typeof deleteDialogTrigger.focus === 'function') {
+        deleteDialogTrigger.focus();
+    }
+    deleteDialogTrigger = null;
 }
 
 function renderWelcome() {
@@ -106,10 +167,18 @@ function appendMessage(type, text, references) {
         const referenceList = document.createElement('div');
         referenceList.className = 'references';
         references.forEach(reference => {
-            const item = document.createElement('span');
+            const item = document.createElement('button');
+            item.type = 'button';
             item.className = 'reference-chip';
             item.textContent = `${reference.title} · 片段 ${reference.chunkIndex + 1} · ${reference.score.toFixed(3)}`;
-            item.title = reference.content || '';
+            item.title = '查看引用片段';
+            item.addEventListener('click', () => {
+                openContentViewer(
+                        '引用片段',
+                        reference.title,
+                        `片段 ${reference.chunkIndex + 1} · 相似度 ${reference.score.toFixed(3)}`,
+                        reference.content);
+            });
             referenceList.appendChild(item);
         });
         message.appendChild(referenceList);
@@ -296,6 +365,21 @@ function formatDocumentTime(value) {
     });
 }
 
+async function viewDocument(documentId) {
+    try {
+        const documentInfo = await request(
+                `/api/knowledge/documents/${encodeURIComponent(documentId)}`);
+        const filename = documentInfo.filename ? ` · ${documentInfo.filename}` : '';
+        openContentViewer(
+                '文档原文',
+                documentInfo.title,
+                `${documentInfo.documentType.toUpperCase()}${filename} · ${documentInfo.chunkCount} 个切片 · 更新于 ${formatDocumentTime(documentInfo.updateTime)}`,
+                documentInfo.content);
+    } catch (error) {
+        showToast('文档读取失败：' + error.message, true);
+    }
+}
+
 function renderDocuments() {
     const keyword = elements.documentSearch.value.trim().toLowerCase();
     const filteredDocuments = documents.filter(documentInfo => {
@@ -321,10 +405,12 @@ function renderDocuments() {
         const type = document.createElement('span');
         type.className = 'document-type';
         type.textContent = documentInfo.documentType.toUpperCase();
-        const name = document.createElement('div');
+        const name = document.createElement('button');
+        name.type = 'button';
         name.className = 'document-name';
         name.textContent = documentInfo.title;
-        name.title = documentInfo.filename || documentInfo.title;
+        name.title = '查看文档原文';
+        name.addEventListener('click', () => viewDocument(documentInfo.documentId));
         titleRow.append(type, name);
 
         const meta = document.createElement('div');
@@ -336,7 +422,7 @@ function renderDocuments() {
         actions.appendChild(createActionButton(
                 '重新索引', '', () => reindexDocument(documentInfo.documentId)));
         actions.appendChild(createActionButton(
-                '删除', 'danger', () => deleteDocument(documentInfo.documentId, documentInfo.title)));
+                '删除', 'danger', () => openDeleteDialog(documentInfo)));
 
         item.append(titleRow, meta, actions);
         elements.documentList.appendChild(item);
@@ -375,17 +461,39 @@ async function reindexDocument(documentId) {
     }
 }
 
-async function deleteDocument(documentId, title) {
-    if (!window.confirm(`确认删除“${title}”及其全部切片吗？此操作不可撤销。`)) {
+async function deleteDocument() {
+    if (!pendingDeleteDocument || deleting) {
         return;
     }
+
+    const documentInfo = pendingDeleteDocument;
+    deleting = true;
+    elements.deleteDialogBackdrop.disabled = true;
+    elements.deleteDialogCancel.disabled = true;
+    elements.deleteDialogClose.disabled = true;
+    elements.deleteDialogConfirm.disabled = true;
+    elements.deleteDialogConfirm.textContent = '正在删除…';
     try {
-        await request(`/api/knowledge/documents/${encodeURIComponent(documentId)}`, {method: 'DELETE'});
+        await request(
+                `/api/knowledge/documents/${encodeURIComponent(documentInfo.documentId)}`,
+                {method: 'DELETE'});
+        elements.deleteDialog.hidden = true;
+        document.body.classList.remove('delete-dialog-open');
+        pendingDeleteDocument = null;
+        deleteDialogTrigger = null;
         setOperationMessage('文档及其切片已删除');
         showToast('删除成功');
         await loadDocuments();
     } catch (error) {
         setOperationMessage('删除失败：' + error.message, true);
+        showToast('删除失败：' + error.message, true);
+    } finally {
+        deleting = false;
+        elements.deleteDialogBackdrop.disabled = false;
+        elements.deleteDialogCancel.disabled = false;
+        elements.deleteDialogClose.disabled = false;
+        elements.deleteDialogConfirm.disabled = false;
+        elements.deleteDialogConfirm.textContent = '确认删除';
     }
 }
 
@@ -421,6 +529,12 @@ document.querySelectorAll('.tab-button').forEach(button => {
 });
 elements.askButton.addEventListener('click', ask);
 elements.clearChatButton.addEventListener('click', renderWelcome);
+elements.contentViewerBackdrop.addEventListener('click', closeContentViewer);
+elements.contentViewerClose.addEventListener('click', closeContentViewer);
+elements.deleteDialogBackdrop.addEventListener('click', closeDeleteDialog);
+elements.deleteDialogCancel.addEventListener('click', closeDeleteDialog);
+elements.deleteDialogClose.addEventListener('click', closeDeleteDialog);
+elements.deleteDialogConfirm.addEventListener('click', deleteDocument);
 elements.importButton.addEventListener('click', uploadTextDocument);
 elements.uploadButton.addEventListener('click', uploadFileDocument);
 elements.refreshDocumentsButton.addEventListener('click', loadDocuments);
@@ -445,6 +559,15 @@ elements.dropZone.addEventListener('drop', event => {
     event.preventDefault();
     elements.dropZone.classList.remove('dragover');
     selectFile(event.dataTransfer.files[0]);
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !elements.deleteDialog.hidden) {
+        closeDeleteDialog();
+        return;
+    }
+    if (event.key === 'Escape' && !elements.contentViewer.hidden) {
+        closeContentViewer();
+    }
 });
 
 renderWelcome();
