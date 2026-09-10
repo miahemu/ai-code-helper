@@ -3,6 +3,8 @@ import {renderMarkdown} from './markdown.js';
 
 const elements = {
     askButton: document.getElementById('askBtn'),
+    askButtonTip: document.getElementById('askButtonTip'),
+    askButtonWrapper: document.getElementById('askButtonWrapper'),
     chatList: document.getElementById('chatList'),
     clearChatButton: document.getElementById('clearChatBtn'),
     content: document.getElementById('content'),
@@ -26,6 +28,7 @@ const elements = {
 };
 
 let documents = [];
+let asking = false;
 let selectedUploadFile = null;
 let toastTimer = null;
 
@@ -142,18 +145,27 @@ function resizeQuestionInput() {
 function updateQuestionCount() {
     elements.questionCount.textContent = `${elements.question.value.length} / 2000`;
     resizeQuestionInput();
+    updateAskButtonState();
+}
+
+function updateAskButtonState() {
+    const hasQuestion = Boolean(elements.question.value.trim());
+    elements.askButton.disabled = asking || !hasQuestion;
+    elements.askButtonWrapper.classList.toggle('show-empty-tip', !asking && !hasQuestion);
+    elements.askButtonWrapper.classList.toggle('is-loading', asking);
+    elements.askButtonTip.textContent = asking ? '正在生成回答' : '请输入你的问题';
 }
 
 async function ask() {
     const question = elements.question.value.trim();
-    if (!question || elements.askButton.disabled) {
+    if (!question || asking) {
         return;
     }
 
+    asking = true;
     appendMessage('user', question);
     elements.question.value = '';
     updateQuestionCount();
-    elements.askButton.disabled = true;
     const loadingMessage = appendLoadingMessage();
     try {
         const data = await request('/api/chat/ask', {
@@ -167,12 +179,13 @@ async function ask() {
         loadingMessage.remove();
         appendMessage('assistant', '请求失败：' + error.message);
     } finally {
-        elements.askButton.disabled = false;
+        asking = false;
+        updateAskButtonState();
         elements.question.focus();
     }
 }
 
-async function importKnowledge() {
+async function uploadTextDocument() {
     const title = elements.title.value.trim();
     const content = elements.content.value.trim();
     if (!title || !content) {
@@ -183,7 +196,7 @@ async function importKnowledge() {
     elements.importButton.disabled = true;
     setOperationMessage('正在切分并生成向量…');
     try {
-        const data = await request('/api/knowledge/import', {
+        const data = await request('/api/knowledge/documents/text', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({title, content})
@@ -222,7 +235,7 @@ function selectFile(file) {
     elements.selectedFile.textContent = `${selectedUploadFile.name} · ${formatFileSize(selectedUploadFile.size)}`;
 }
 
-async function uploadDocument() {
+async function uploadFileDocument() {
     if (!selectedUploadFile) {
         setOperationMessage('请先选择需要上传的文档', true);
         return;
@@ -237,7 +250,7 @@ async function uploadDocument() {
     elements.uploadButton.disabled = true;
     setOperationMessage('正在解析文档并生成向量…');
     try {
-        const data = await request('/api/knowledge/upload', {
+        const data = await request('/api/knowledge/documents/file', {
             method: 'POST',
             body: formData
         });
@@ -408,8 +421,8 @@ document.querySelectorAll('.tab-button').forEach(button => {
 });
 elements.askButton.addEventListener('click', ask);
 elements.clearChatButton.addEventListener('click', renderWelcome);
-elements.importButton.addEventListener('click', importKnowledge);
-elements.uploadButton.addEventListener('click', uploadDocument);
+elements.importButton.addEventListener('click', uploadTextDocument);
+elements.uploadButton.addEventListener('click', uploadFileDocument);
 elements.refreshDocumentsButton.addEventListener('click', loadDocuments);
 elements.documentSearch.addEventListener('input', renderDocuments);
 elements.content.addEventListener('input', () => {

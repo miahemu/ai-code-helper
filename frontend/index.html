@@ -51,10 +51,14 @@
                           placeholder="基于知识库提问，Enter 发送，Shift + Enter 换行"></textarea>
                 <div class="composer-footer">
                     <span id="questionCount" class="character-count">0 / 2000</span>
-                    <button id="askBtn" class="primary-button send-button" type="button">
-                        <span>发送问题</span>
-                        <span aria-hidden="true">↑</span>
-                    </button>
+                    <div id="askButtonWrapper" class="send-button-wrapper">
+                        <button id="askBtn" class="send-button" type="button" aria-label="发送问题" disabled>
+                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                                <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"></path>
+                            </svg>
+                        </button>
+                        <span id="askButtonTip" class="send-button-tooltip" role="tooltip">请输入你的问题</span>
+                    </div>
                 </div>
             </div>
         </section>
