@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: ai-rag-demo
+    name: ai-code-helper
   profiles:
     active: local
   servlet:
@@ -21,6 +21,9 @@ ai:
     url: "xxxxxxxx"
     api-key: "xxxxxxxxx"
     model: "DeepSeek-V4-Pro"
+  chat-memory:
+    # 每个 conversationId 最多保留的消息数量，包含用户、助手和工具消息
+    max-messages: 20
   embedding:
     # OpenAI 兼容的 embeddings 完整地址；留空时使用本地 256 维哈希向量
     url: ""
@@ -34,7 +37,7 @@ ai:
     overlap: 80
   retrieval:
     # 低于该相似度的切片不参与回答，也不会在页面展示
-    min-score: 0.20
+    min-score: 0.50
     # 本地哈希向量缺少语义能力，额外要求问题与切片存在真实关键词重合
     local-keyword-filter-enabled: true
 
@@ -42,9 +45,9 @@ agent:
   # true： 新Agent流程
   # false： 固定 RAG 流程
   enabled: true
-  # 单次任务允许的最大模型调用轮数，避免异常情况下无限循环
+  # LangChain4j 单次任务允许的最大工具调用轮数，避免异常情况下无限循环
   max-steps: 5
-  # 是否记录 Agent 执行轨迹，当前仅预留配置
+  # 是否记录 Agent 执行结果和工具调用数量
   trace-enabled: true
 
 elasticsearch:

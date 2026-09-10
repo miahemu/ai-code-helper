@@ -9,12 +9,21 @@ import com.eastmoney.agent.service.DocumentParserService;
 import com.eastmoney.agent.service.EmbeddingService;
 import com.eastmoney.agent.service.ElasticsearchService;
 import com.eastmoney.agent.service.KnowledgeService;
-import com.eastmoney.agent.util.TextChunkUtil;
-import com.eastmoney.agent.util.VectorUtil;
 import com.eastmoney.agent.vo.request.KnowledgeImportReqVO;
+import com.eastmoney.agent.vo.response.KnowledgeDocumentDetailRespVO;
 import com.eastmoney.agent.vo.response.KnowledgeDocumentRespVO;
 import com.eastmoney.agent.vo.response.KnowledgeImportRespVO;
 import com.eastmoney.agent.vo.response.SystemStatusRespVO;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.DocumentSplitter;
+import dev.langchain4j.data.document.Metadata;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
+import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,11 +32,17 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -39,19 +54,37 @@ import java.util.stream.Collectors;
 @Service
 public class KnowledgeServiceImpl implements KnowledgeService {
 
-    /** 未启用 Elasticsearch 时使用的内存知识库 */
-    private final ConcurrentMap<String, KnowledgeChunk> localStore = new ConcurrentHashMap<>();
+    private static final String LOCAL_HASH_MODE = "local-hash";
 
-    /** 文档元数据和重新索引所需原文，服务重启后清空 */
+    private static final Pattern LATIN_KEYWORD_PATTERN = Pattern.compile("[a-z0-9][a-z0-9._-]*");
+
+    private static final Pattern CHINESE_TEXT_PATTERN = Pattern.compile("[\\u4e00-\\u9fff]+");
+
+    private static final Set<String> QUERY_STOP_WORDS = new HashSet<>(Arrays.asList(
+            "什么", "怎么", "如何", "哪些", "是否", "可以", "需要", "应该", "一个",
+            "这个", "那个", "有关", "相关", "问题", "一下", "介绍", "说明", "告诉", "帮我"));
+
+    // 未启用 Elasticsearch 时使用 LangChain4j 内存向量库
+    private final InMemoryEmbeddingStore<TextSegment> localStore = new InMemoryEmbeddingStore<>();
+
+    // 文档元数据和重新索引所需原文，服务重启后清空
     private final ConcurrentMap<String, KnowledgeDocument> documentStore = new ConcurrentHashMap<>();
 
-    /** 文档切片大小 */
+    // 文档切片大小
     @Value("${ai.chunk.size}")
     private Integer chunkSize;
 
-    /** 相邻文档切片重叠长度 */
+    // 相邻文档切片重叠长度
     @Value("${ai.chunk.overlap}")
     private Integer chunkOverlap;
+
+    // 知识切片最低相似度，低于该值时不参与回答
+    @Value("${ai.retrieval.min-score:0.20}")
+    private Double retrievalMinScore;
+
+    // 本地哈希向量容易因维度碰撞产生假相似，需要使用真实关键词重合进行兜底
+    @Value("${ai.retrieval.local-keyword-filter-enabled:true}")
+    private Boolean localKeywordFilterEnabled;
 
     @Value("${elasticsearch.enabled}")
     private Boolean elasticsearchEnabled;
@@ -129,6 +162,31 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
+     * 查询指定文档的元数据和原始文本，用于页面查看文档内容
+     *
+     * @param documentId 文档唯一标识
+     * @return 文档详情
+     */
+    @Override
+    public KnowledgeDocumentDetailRespVO getDocument(String documentId) {
+        KnowledgeDocument document = documentStore.get(documentId);
+        if (document == null) {
+            throw new IllegalArgumentException("文档不存在或已删除");
+        }
+
+        KnowledgeDocumentDetailRespVO result = new KnowledgeDocumentDetailRespVO();
+        result.setDocumentId(document.getId());
+        result.setTitle(document.getTitle());
+        result.setFilename(document.getFilename());
+        result.setDocumentType(document.getDocumentType().getExtension());
+        result.setContent(document.getContent());
+        result.setChunkCount(document.getChunkCount());
+        result.setCreateTime(document.getCreateTime());
+        result.setUpdateTime(document.getUpdateTime());
+        return result;
+    }
+
+    /**
      * 删除文档元数据以及该文档对应的全部知识切片
      *
      * @param documentId 文档唯一标识
@@ -156,7 +214,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             throw new IllegalArgumentException("文档不存在，无法重新索引");
         }
 
-        List<KnowledgeChunk> chunks = buildChunks(document);
+        List<KnowledgeChunk> chunks = this.buildChunks(document);
         deleteChunks(documentId);
         saveChunks(chunks);
         document.setChunkCount(chunks.size());
@@ -179,24 +237,74 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     @Override
     public List<SearchResult> search(String question, Integer topK) {
-        int actualTopK = topK == null ? 4 : Math.max(1, Math.min(topK, 20));
-        List<Double> queryVector = embeddingService.embed(question);
+        int actualTopK = Math.max(1, Math.min(topK, 20));
+        Embedding queryEmbedding = embeddingService.embed(question);
+        List<SearchResult> searchResults;
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
-            return elasticsearchService.search(queryVector, actualTopK);
+            searchResults = elasticsearchService.search(queryEmbedding, actualTopK);
+        } else {
+            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(queryEmbedding)
+                    .maxResults(actualTopK)
+                    .minScore(retrievalMinScore)
+                    .build();
+            searchResults = localStore.search(searchRequest).matches().stream()
+                    .map(this::toSearchResult)
+                    .collect(Collectors.toList());
         }
-        return localStore.values().stream()
-                .map(chunk -> {
-                    SearchResult result = new SearchResult();
-                    result.setDocumentId(chunk.getDocumentId());
-                    result.setTitle(chunk.getTitle());
-                    result.setChunkIndex(chunk.getChunkIndex());
-                    result.setContent(chunk.getContent());
-                    result.setScore(VectorUtil.cosineSimilarity(queryVector, chunk.getEmbedding()));
-                    return result;
-                })
-                .sorted(Comparator.comparing(SearchResult::getScore).reversed())
-                .limit(actualTopK)
+
+        return searchResults.stream()
+                .filter(result -> isRelevantResult(question, result))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 过滤低相关度结果；本地哈希模式额外排除仅由哈希碰撞产生的假相似结果
+     */
+    private boolean isRelevantResult(String question, SearchResult result) {
+        if (result.getScore() == null || result.getScore() < retrievalMinScore) {
+            return false;
+        }
+        if (!LOCAL_HASH_MODE.equals(embeddingService.getMode())
+                || !Boolean.TRUE.equals(localKeywordFilterEnabled)) {
+            return true;
+        }
+        return hasKeywordOverlap(question, result.getTitle() + " " + result.getContent());
+    }
+
+    /**
+     * 本地哈希向量仅用于演示，不具备可靠语义能力，因此至少要求英文词或中文双字词真实出现
+     */
+    private boolean hasKeywordOverlap(String question, String content) {
+        String normalizedQuestion = normalizeText(question);
+        String normalizedContent = normalizeText(content);
+
+        Matcher latinMatcher = LATIN_KEYWORD_PATTERN.matcher(normalizedQuestion);
+        while (latinMatcher.find()) {
+            String keyword = latinMatcher.group();
+            if (keyword.length() > 1 && normalizedContent.contains(keyword)) {
+                return true;
+            }
+        }
+
+        Matcher chineseMatcher = CHINESE_TEXT_PATTERN.matcher(normalizedQuestion);
+        while (chineseMatcher.find()) {
+            String chineseText = chineseMatcher.group();
+            if (chineseText.length() == 1 && normalizedContent.contains(chineseText)) {
+                return true;
+            }
+            for (int index = 0; index < chineseText.length() - 1; index++) {
+                String keyword = chineseText.substring(index, index + 2);
+                if (!QUERY_STOP_WORDS.contains(keyword) && normalizedContent.contains(keyword)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private String normalizeText(String text) {
+        return text == null ? "" : text.toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -245,16 +353,18 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      * 根据原文重新生成完整切片列表；全部向量成功生成后才会进入存储替换步骤
      */
     private List<KnowledgeChunk> buildChunks(KnowledgeDocument document) {
-        List<String> contents = TextChunkUtil.chunk(document.getContent(), chunkSize, chunkOverlap);
+        DocumentSplitter documentSplitter = DocumentSplitters.recursive(chunkSize, chunkOverlap);
+        List<TextSegment> segments = documentSplitter.split(Document.from(document.getContent()));
         List<KnowledgeChunk> chunks = new ArrayList<>();
-        for (int index = 0; index < contents.size(); index++) {
+        for (int index = 0; index < segments.size(); index++) {
+            String content = segments.get(index).text();
             KnowledgeChunk chunk = new KnowledgeChunk();
             chunk.setId(document.getId() + "-" + index);
             chunk.setDocumentId(document.getId());
             chunk.setTitle(document.getTitle());
             chunk.setChunkIndex(index);
-            chunk.setContent(contents.get(index));
-            chunk.setEmbedding(embeddingService.embed(contents.get(index)));
+            chunk.setContent(content);
+            chunk.setEmbedding(embeddingService.embed(content));
             chunks.add(chunk);
         }
         return chunks;
@@ -269,7 +379,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return;
         }
         for (KnowledgeChunk chunk : chunks) {
-            localStore.put(chunk.getId(), chunk);
+            Metadata metadata = new Metadata()
+                    .put("documentId", chunk.getDocumentId())
+                    .put("title", chunk.getTitle())
+                    .put("chunkIndex", chunk.getChunkIndex());
+            TextSegment segment = TextSegment.from(chunk.getContent(), metadata);
+            localStore.add(chunk.getId(), chunk.getEmbedding(), segment);
         }
     }
 
@@ -281,6 +396,17 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             elasticsearchService.deleteByDocumentId(documentId);
             return;
         }
-        localStore.entrySet().removeIf(entry -> documentId.equals(entry.getValue().getDocumentId()));
+        localStore.removeAll(MetadataFilterBuilder.metadataKey("documentId").isEqualTo(documentId));
+    }
+
+    private SearchResult toSearchResult(EmbeddingMatch<TextSegment> match) {
+        TextSegment segment = match.embedded();
+        SearchResult result = new SearchResult();
+        result.setDocumentId(segment.metadata().getString("documentId"));
+        result.setTitle(segment.metadata().getString("title"));
+        result.setChunkIndex(segment.metadata().getInteger("chunkIndex"));
+        result.setContent(segment.text());
+        result.setScore(match.score());
+        return result;
     }
 }

@@ -1,8 +1,7 @@
 package com.eastmoney.agent.domain;
 
+import dev.langchain4j.data.embedding.Embedding;
 import lombok.Data;
-
-import java.util.List;
 
 /**
  * @Author: suyue
@@ -29,5 +28,5 @@ public class KnowledgeChunk {
     private String content;
 
     // 切片文本对应的向量
-    private List<Double> embedding;
+    private Embedding embedding;
 }

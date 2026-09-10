@@ -2,6 +2,7 @@ package com.eastmoney.agent.service;
 
 import com.eastmoney.agent.domain.SearchResult;
 import com.eastmoney.agent.vo.request.KnowledgeImportReqVO;
+import com.eastmoney.agent.vo.response.KnowledgeDocumentDetailRespVO;
 import com.eastmoney.agent.vo.response.KnowledgeDocumentRespVO;
 import com.eastmoney.agent.vo.response.KnowledgeImportRespVO;
 import com.eastmoney.agent.vo.response.SystemStatusRespVO;
@@ -25,6 +26,8 @@ public interface KnowledgeService {
     List<SearchResult> search(String question, Integer topK);
 
     List<KnowledgeDocumentRespVO> listDocuments();
+
+    KnowledgeDocumentDetailRespVO getDocument(String documentId);
 
     void deleteDocument(String documentId);
 

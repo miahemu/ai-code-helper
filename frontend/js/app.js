@@ -49,6 +49,14 @@ let deleting = false;
 let pendingDeleteDocument = null;
 let selectedUploadFile = null;
 let toastTimer = null;
+let conversationId = createConversationId();
+
+function createConversationId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+    return `conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function showToast(message, isError = false) {
     window.clearTimeout(toastTimer);
@@ -141,6 +149,11 @@ function renderWelcome() {
     content.append(icon, title, description, suggestions);
     welcome.appendChild(content);
     elements.chatList.appendChild(welcome);
+}
+
+function clearChat() {
+    conversationId = createConversationId();
+    renderWelcome();
 }
 
 function appendMessage(type, text, references) {
@@ -241,7 +254,7 @@ async function ask() {
         const data = await request('/api/chat/ask', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({question, topK: Number(elements.topK.value)})
+            body: JSON.stringify({conversationId, question, topK: Number(elements.topK.value)})
         });
         loadingMessage.remove();
         appendMessage('assistant', data.answer, data.references);
@@ -529,7 +542,7 @@ document.querySelectorAll('.tab-button').forEach(button => {
     button.addEventListener('click', () => switchTab(button.dataset.tab));
 });
 elements.askButton.addEventListener('click', ask);
-elements.clearChatButton.addEventListener('click', renderWelcome);
+elements.clearChatButton.addEventListener('click', clearChat);
 elements.contentViewerBackdrop.addEventListener('click', closeContentViewer);
 elements.contentViewerClose.addEventListener('click', closeContentViewer);
 elements.deleteDialogBackdrop.addEventListener('click', closeDeleteDialog);

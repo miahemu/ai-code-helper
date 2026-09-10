@@ -3,6 +3,7 @@ package com.eastmoney.agent.service.impl;
 import com.eastmoney.agent.domain.KnowledgeChunk;
 import com.eastmoney.agent.domain.SearchResult;
 import com.eastmoney.agent.service.ElasticsearchService;
+import dev.langchain4j.data.embedding.Embedding;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -64,7 +65,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
             document.put("title", chunk.getTitle());
             document.put("chunkIndex", chunk.getChunkIndex());
             document.put("content", chunk.getContent());
-            document.put("embedding", chunk.getEmbedding());
+            document.put("embedding", chunk.getEmbedding().vectorAsList());
             exchange(HttpMethod.PUT, "/" + elasticsearchIndexName + "/_doc/" + chunk.getId(), document);
         }
         exchange(HttpMethod.POST, "/" + elasticsearchIndexName + "/_refresh", null);
@@ -73,15 +74,15 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
     /**
      * 使用 cosineSimilarity 脚本执行向量相似度检索
      *
-     * @param queryVector 问题向量
+     * @param queryEmbedding 问题向量
      * @param topK 召回片段数量
      * @return 知识库检索结果
      */
     @Override
-    public List<SearchResult> search(List<Double> queryVector, int topK) {
+    public List<SearchResult> search(Embedding queryEmbedding, int topK) {
         ensureIndex();
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("queryVector", queryVector);
+        params.put("queryVector", queryEmbedding.vectorAsList());
 
         Map<String, Object> script = new LinkedHashMap<>();
         script.put("source", "cosineSimilarity(params.queryVector, 'embedding') + 1.0");

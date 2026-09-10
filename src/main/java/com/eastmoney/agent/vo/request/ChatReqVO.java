@@ -2,8 +2,8 @@ package com.eastmoney.agent.vo.request;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * @Author: suyue
@@ -13,6 +13,11 @@ import javax.validation.constraints.Size;
  */
 @Data
 public class ChatReqVO {
+
+    // 当前前端会话唯一标识，用于隔离不同会话的上下文记忆
+    @NotBlank(message = "会话标识不能为空")
+    @Size(max = 64, message = "会话标识不能超过 64 个字符")
+    private String conversationId;
 
     // 用户问题
     @NotBlank(message = "问题不能为空")

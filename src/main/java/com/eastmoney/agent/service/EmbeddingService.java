@@ -1,6 +1,6 @@
 package com.eastmoney.agent.service;
 
-import java.util.List;
+import dev.langchain4j.data.embedding.Embedding;
 
 /**
  * @Author: suyue
@@ -10,8 +10,7 @@ import java.util.List;
  */
 public interface EmbeddingService {
 
-    List<Double> embed(String text);
+    Embedding embed(String text);
 
     String getMode();
 }
-

@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @Author: suyue
  * @name: AiAgentApplication
  * @Date: 2026/09/01
- * @Description: AI 对答与知识库检索 Demo 启动类
+ * @Description: AI 对答启动类
  */
 @SpringBootApplication
 public class AiAgentApplication {

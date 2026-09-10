@@ -2,6 +2,7 @@ package com.eastmoney.agent.service;
 
 import com.eastmoney.agent.domain.KnowledgeChunk;
 import com.eastmoney.agent.domain.SearchResult;
+import dev.langchain4j.data.embedding.Embedding;
 
 import java.util.List;
 
@@ -15,7 +16,7 @@ public interface ElasticsearchService {
 
     void saveAll(List<KnowledgeChunk> chunks);
 
-    List<SearchResult> search(List<Double> queryVector, int topK);
+    List<SearchResult> search(Embedding queryEmbedding, int topK);
 
     void deleteByDocumentId(String documentId);
 }
