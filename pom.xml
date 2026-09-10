@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version>
+        <version>3.5.3</version>
         <relativePath/>
     </parent>
 
@@ -18,7 +18,7 @@
     <description>AI conversation and Elasticsearch RAG demo</description>
 
     <properties>
-        <java.version>1.8</java.version>
+        <java.version>17</java.version>
         <pdfbox.version>2.0.32</pdfbox.version>
         <poi.version>5.4.1</poi.version>
     </properties>
