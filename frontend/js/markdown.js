@@ -1,13 +1,34 @@
 /**
  * 向节点中追加加粗、斜体和行内代码等 Markdown 内容。
  */
-function appendInlineMarkdown(container, text) {
-    const pattern = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g;
+function appendInlineMarkdown(container, text, context) {
+    const pattern = /(【资料\d+】|\[资料\d+]|\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g;
     let lastIndex = 0;
     let match;
     while ((match = pattern.exec(text)) !== null) {
         container.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
         const token = match[0];
+        const referenceToken = token.match(/^(?:【资料(\d+)】|\[资料(\d+)])$/);
+        if (referenceToken) {
+            const referenceNumber = Number(referenceToken[1] || referenceToken[2]);
+            const referenceIndex = referenceNumber - 1;
+            const reference = context.references[referenceIndex];
+            if (reference) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'inline-reference';
+                button.textContent = '资料';
+                button.title = `查看资料：${reference.title}`;
+                button.setAttribute('aria-label', `查看引用资料：${reference.title}`);
+                button.addEventListener('click', () => context.onReferenceClick(reference));
+                container.appendChild(button);
+                context.referencedIndexes.add(referenceIndex);
+            } else {
+                container.appendChild(document.createTextNode(token));
+            }
+            lastIndex = pattern.lastIndex;
+            continue;
+        }
         const tagName = token.startsWith('`') ? 'code' : token.startsWith('**') ? 'strong' : 'em';
         const element = document.createElement(tagName);
         element.textContent = token.startsWith('**') ? token.slice(2, -2) : token.slice(1, -1);
@@ -87,7 +108,7 @@ function normalizeDocumentContent(content) {
     }).join('\n');
 }
 
-function appendTable(container, lines, startIndex) {
+function appendTable(container, lines, startIndex, context) {
     const headers = parseTableRow(lines[startIndex]);
     const separators = parseTableRow(lines[startIndex + 1]);
     const wrapper = document.createElement('div');
@@ -99,7 +120,7 @@ function appendTable(container, lines, startIndex) {
     headers.forEach((header, index) => {
         const cell = document.createElement('th');
         cell.style.textAlign = getTableAlignment(separators[index] || '---');
-        appendInlineMarkdown(cell, header);
+        appendInlineMarkdown(cell, header, context);
         headRow.appendChild(cell);
     });
     head.appendChild(headRow);
@@ -114,7 +135,7 @@ function appendTable(container, lines, startIndex) {
         headers.forEach((header, index) => {
             const cell = document.createElement('td');
             cell.style.textAlign = getTableAlignment(separators[index] || '---');
-            appendInlineMarkdown(cell, values[index] || '');
+            appendInlineMarkdown(cell, values[index] || '', context);
             row.appendChild(cell);
         });
         body.appendChild(row);
@@ -131,10 +152,17 @@ function appendTable(container, lines, startIndex) {
  *
  * @param {HTMLElement} container 渲染容器
  * @param {string} markdown Markdown 文本
+ * @param {{references?: Array, onReferenceClick?: Function}} options 渲染选项
+ * @return {Set<number>} 已渲染的引用下标
  */
-export function renderMarkdown(container, markdown) {
+export function renderMarkdown(container, markdown, options = {}) {
     const content = normalizeMarkdown(markdown);
     const lines = content.split('\n');
+    const context = {
+        references: options.references || [],
+        onReferenceClick: options.onReferenceClick || (() => {}),
+        referencedIndexes: new Set()
+    };
     let list = null;
     let listType = '';
     let paragraph = [];
@@ -147,7 +175,7 @@ export function renderMarkdown(container, markdown) {
         }
         const element = document.createElement('div');
         element.className = 'md-paragraph';
-        appendInlineMarkdown(element, paragraph.join('\n'));
+        appendInlineMarkdown(element, paragraph.join('\n'), context);
         container.appendChild(element);
         paragraph = [];
     }
@@ -187,7 +215,7 @@ export function renderMarkdown(container, markdown) {
                 && isTableSeparator(lines[lineIndex + 1])) {
             flushParagraph();
             closeList();
-            lineIndex = appendTable(container, lines, lineIndex);
+            lineIndex = appendTable(container, lines, lineIndex, context);
             continue;
         }
 
@@ -204,7 +232,7 @@ export function renderMarkdown(container, markdown) {
             closeList();
             const element = document.createElement('div');
             element.className = `md-heading md-heading-${heading[1].length}`;
-            appendInlineMarkdown(element, heading[2]);
+            appendInlineMarkdown(element, heading[2], context);
             container.appendChild(element);
             continue;
         }
@@ -221,7 +249,7 @@ export function renderMarkdown(container, markdown) {
                 container.appendChild(list);
             }
             const item = document.createElement('li');
-            appendInlineMarkdown(item, (orderedItem || unorderedItem)[1]);
+            appendInlineMarkdown(item, (orderedItem || unorderedItem)[1], context);
             list.appendChild(item);
             continue;
         }
@@ -231,7 +259,7 @@ export function renderMarkdown(container, markdown) {
             flushParagraph();
             closeList();
             const element = document.createElement('blockquote');
-            appendInlineMarkdown(element, quote[1]);
+            appendInlineMarkdown(element, quote[1], context);
             container.appendChild(element);
             continue;
         }
@@ -248,6 +276,7 @@ export function renderMarkdown(container, markdown) {
         pre.appendChild(code);
         container.appendChild(pre);
     }
+    return context.referencedIndexes;
 }
 
 /**

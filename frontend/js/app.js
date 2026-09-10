@@ -156,6 +156,29 @@ function clearChat() {
     renderWelcome();
 }
 
+function openReference(reference) {
+    openContentViewer(
+            '引用资料',
+            reference.title,
+            `原文片段 ${reference.chunkIndex + 1} · 相似度 ${reference.score.toFixed(3)}`,
+            reference.content);
+}
+
+function appendReferenceList(message, references) {
+    const referenceList = document.createElement('div');
+    referenceList.className = 'references';
+    references.forEach(reference => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'reference-chip';
+        item.textContent = `${reference.title} · 原文片段 ${reference.chunkIndex + 1} · ${reference.score.toFixed(3)}`;
+        item.title = '查看引用片段';
+        item.addEventListener('click', () => openReference(reference));
+        referenceList.appendChild(item);
+    });
+    message.appendChild(referenceList);
+}
+
 function appendMessage(type, text, references) {
     const welcome = elements.chatList.querySelector('.welcome');
     if (welcome) {
@@ -172,30 +195,15 @@ function appendMessage(type, text, references) {
         avatar.className = 'avatar';
         avatar.textContent = 'AI';
         row.appendChild(avatar);
-        renderMarkdown(message, text);
+        const referencedIndexes = renderMarkdown(message, text, {
+            references,
+            onReferenceClick: openReference
+        });
+        if (references && references.length && referencedIndexes.size === 0) {
+            appendReferenceList(message, references);
+        }
     } else {
         message.textContent = text;
-    }
-
-    if (references && references.length) {
-        const referenceList = document.createElement('div');
-        referenceList.className = 'references';
-        references.forEach(reference => {
-            const item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'reference-chip';
-            item.textContent = `${reference.title} · 片段 ${reference.chunkIndex + 1} · ${reference.score.toFixed(3)}`;
-            item.title = '查看引用片段';
-            item.addEventListener('click', () => {
-                openContentViewer(
-                        '引用片段',
-                        reference.title,
-                        `片段 ${reference.chunkIndex + 1} · 相似度 ${reference.score.toFixed(3)}`,
-                        reference.content);
-            });
-            referenceList.appendChild(item);
-        });
-        message.appendChild(referenceList);
     }
 
     row.appendChild(message);

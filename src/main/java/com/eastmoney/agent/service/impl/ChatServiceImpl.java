@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @Author: suyue
@@ -30,6 +32,12 @@ import java.util.Map;
 @Slf4j
 @Service
 public class ChatServiceImpl implements ChatService {
+
+    private static final Pattern AGENT_REFERENCE_PATTERN = Pattern.compile(
+            "(?:【资料:([^】]+)】|\\[资料:([^\\]]+)])");
+
+    private static final Pattern NUMBERED_REFERENCE_PATTERN = Pattern.compile(
+            "(?:【资料(\\d+)】|\\[资料(\\d+)])");
 
     @Value("${agent.enabled:false}")
     private Boolean agentEnabled;
@@ -67,7 +75,7 @@ public class ChatServiceImpl implements ChatService {
         List<SearchResult> searchResults = knowledgeService.search(request.getQuestion(), request.getTopK());
         String answer = fixedRagAssistant.chat(request.getConversationId(), request.getQuestion(), buildReferenceContent(searchResults));
         ChatRespVO result = new ChatRespVO();
-        result.setAnswer(answer);
+        result.setAnswer(normalizeNumberedReferences(answer, searchResults.size()));
         result.setVectorStoreMode(knowledgeService.getVectorStoreMode());
         result.setReferences(buildReferenceRespVOs(searchResults));
         return result;
@@ -83,10 +91,12 @@ public class ChatServiceImpl implements ChatService {
             log.info("Agent 执行完成，finishReason={}，toolCallCount={}",
                     agentResult.finishReason(), toolExecutions == null ? 0 : toolExecutions.size());
         }
+        List<SearchResult> references = extractReferences(toolExecutions);
+        String answer = normalizeAgentReferences(agentResult.content(), references);
         ChatRespVO result = new ChatRespVO();
-        result.setAnswer(agentResult.content());
+        result.setAnswer(normalizeNumberedReferences(answer, references.size()));
         result.setVectorStoreMode(knowledgeService.getVectorStoreMode());
-        result.setReferences(buildReferenceRespVOs(extractReferences(toolExecutions)));
+        result.setReferences(buildReferenceRespVOs(references));
         return result;
     }
 
@@ -132,6 +142,47 @@ public class ChatServiceImpl implements ChatService {
             }
         }
         return new ArrayList<>(referenceMap.values());
+    }
+
+    /**
+     * 将 Agent 输出的稳定引用标识转换为本次回答中的连续引用编号
+     */
+    private String normalizeAgentReferences(String answer, List<SearchResult> references) {
+        Map<String, Integer> referenceNumberMap = new LinkedHashMap<>();
+        for (int index = 0; index < references.size(); index++) {
+            SearchResult reference = references.get(index);
+            if (reference.getReferenceId() != null) {
+                referenceNumberMap.put(reference.getReferenceId(), index + 1);
+            }
+        }
+
+        Matcher matcher = AGENT_REFERENCE_PATTERN.matcher(answer == null ? "" : answer);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            String referenceId = matcher.group(1) == null ? matcher.group(2) : matcher.group(1);
+            Integer referenceNumber = referenceNumberMap.get(referenceId);
+            String replacement = referenceNumber == null ? "" : "【资料" + referenceNumber + "】";
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    /**
+     * 统一引用标记格式，并移除不存在的引用编号
+     */
+    private String normalizeNumberedReferences(String answer, int referenceCount) {
+        Matcher matcher = NUMBERED_REFERENCE_PATTERN.matcher(answer == null ? "" : answer);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            String numberText = matcher.group(1) == null ? matcher.group(2) : matcher.group(1);
+            int referenceNumber = Integer.parseInt(numberText);
+            String replacement = referenceNumber > 0 && referenceNumber <= referenceCount
+                    ? "【资料" + referenceNumber + "】" : "";
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+        return result.toString();
     }
 
     private List<KnowledgeReferenceRespVO> buildReferenceRespVOs(List<SearchResult> searchResults) {

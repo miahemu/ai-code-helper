@@ -28,6 +28,9 @@ public class KnowledgeSearchTool {
     public List<SearchResult> search(
             @P(name = "query", value = "用于知识库检索的清晰、完整查询语句") String query,
             @P(name = "topK", value = "返回的知识片段数量，范围为 1 到 20") Integer topK) {
-        return knowledgeService.search(query, topK);
+        List<SearchResult> searchResults = knowledgeService.search(query, topK);
+        searchResults.forEach(searchResult -> searchResult.setReferenceId(
+                searchResult.getDocumentId() + ":" + searchResult.getChunkIndex()));
+        return searchResults;
     }
 }

@@ -2,6 +2,7 @@ package com.eastmoney.agent.config;
 
 import com.eastmoney.agent.service.AgentAssistant;
 import com.eastmoney.agent.service.FixedRagAssistant;
+import com.eastmoney.agent.tool.InterviewQuestionTool;
 import com.eastmoney.agent.tool.KnowledgeSearchTool;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -70,11 +71,12 @@ public class LangChain4jConfig {
     @Bean
     public AgentAssistant agentAssistant(ChatModel chatModel,
                                          ChatMemoryProvider chatMemoryProvider,
-                                         KnowledgeSearchTool knowledgeSearchTool) {
+                                         KnowledgeSearchTool knowledgeSearchTool,
+                                         InterviewQuestionTool interviewQuestionTool) {
         return AiServices.builder(AgentAssistant.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(chatMemoryProvider)
-                .tools(knowledgeSearchTool)
+                .tools(knowledgeSearchTool, interviewQuestionTool)
                 .maxToolCallingRoundTrips(Math.max(1, maxSteps))
                 .build();
     }

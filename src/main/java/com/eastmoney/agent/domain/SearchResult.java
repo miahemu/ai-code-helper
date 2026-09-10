@@ -11,6 +11,9 @@ import lombok.Data;
 @Data
 public class SearchResult {
 
+    // Agent 引用知识片段时使用的稳定标识
+    private String referenceId;
+
     // 原始文档唯一标识
     private String documentId;
 

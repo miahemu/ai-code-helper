@@ -20,6 +20,7 @@
     <properties>
         <java.version>17</java.version>
         <langchain4j.version>1.19.0</langchain4j.version>
+        <jsoup.version>1.18.3</jsoup.version>
         <pdfbox.version>2.0.32</pdfbox.version>
         <poi.version>5.4.1</poi.version>
     </properties>
@@ -42,6 +43,11 @@
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-open-ai</artifactId>
             <version>${langchain4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>${jsoup.version}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
