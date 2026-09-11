@@ -47,6 +47,14 @@ agent:
   # 是否记录 Agent 执行结果和工具调用数量
   trace-enabled: true
 
+bigmodel:
+  # GLM Coding Plan 专属 API Key
+  api-key: "xxxxxxxxxxx"
+  mcp:
+    web-search-url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp"
+    # 调试时可开启 MCP 请求和响应日志
+    log-enabled: false
+
 elasticsearch:
   # 首次启动建议保持 false，跑通后再改为 true 接测试线 ES
   enabled: false

@@ -3,8 +3,8 @@ package com.eastmoney.agent.config;
 import com.eastmoney.agent.service.AgentAssistant;
 import com.eastmoney.agent.tool.InterviewQuestionTool;
 import com.eastmoney.agent.tool.KnowledgeSearchTool;
-import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
@@ -57,29 +57,18 @@ public class LangChain4jConfig {
                 .build();
     }
 
-    /**
-     * 会话记忆（默认 20 条上下文）
-     * @return
-     */
-    @Bean
-    public ChatMemoryProvider chatMemoryProvider() {
-        return memoryId -> MessageWindowChatMemory.builder()
-                .id(memoryId)
-                .maxMessages(Math.max(1, maxMemoryMessages))
-                .alwaysKeepSystemMessageFirst(true)
-                .build();
-    }
-
     @Bean
     public AgentAssistant agentAssistant(ChatModel chatModel,
-                                         ChatMemoryProvider chatMemoryProvider,
                                          KnowledgeSearchTool knowledgeSearchTool,
-                                         InterviewQuestionTool interviewQuestionTool) {
+                                         InterviewQuestionTool interviewQuestionTool,
+                                         McpToolProvider mcpToolProvider) {
         return AiServices.builder(AgentAssistant.class)
                 .chatModel(chatModel)
-                .chatMemoryProvider(chatMemoryProvider)
-                .tools(knowledgeSearchTool, interviewQuestionTool)
-                .maxToolCallingRoundTrips(Math.max(1, maxSteps))
+                .chatMemoryProvider(memoryId ->
+                        MessageWindowChatMemory.withMaxMessages(maxMemoryMessages)) // 每个会话独立存储
+                .tools(knowledgeSearchTool, interviewQuestionTool) //工具调用
+                .toolProvider(mcpToolProvider) // MCP 工具调用
+                .maxToolCallingRoundTrips(maxSteps)
                 .build();
     }
 

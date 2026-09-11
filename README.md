@@ -30,6 +30,7 @@ Maven 构建时会将 `frontend` 自动复制到应用的 `static` 目录，因�
 - LangChain4j 内存向量库，以及 Elasticsearch `dense_vector + script_score` 检索
 - LangChain4j OpenAI 兼容的 Embedding、Chat Model
 - 基于 LangChain4j AI Services 的 Tool Calling Agent，当前提供知识库检索工具
+- 可选接入智谱 Web Search MCP，为 Agent 提供联网搜索能力
 - 基于 `ChatMemoryProvider` 的多会话记忆，并通过 `MessageWindowChatMemory` 限制历史消息数量
 - 模型、Embedding、Elasticsearch 均通过 `application.yml` 配置
 
@@ -197,3 +198,17 @@ agent:
 ```
 
 LangChain4j AI Services 会负责工具定义、参数解析和多轮调用。Agent 会自主判断是否调用 `knowledge_search`：普通问题可以直接回答，需要内部资料的问题则会检索知识库，并根据工具结果继续生成最终回答。
+
+## 接入智谱联网搜索 MCP
+
+项目使用当前 LangChain4j MCP 版本支持的 Streamable HTTP 协议，对接智谱 Web Search Prime MCP。需要使用 GLM Coding Plan 专属 API Key：
+
+```yaml
+bigmodel:
+  api-key: "your-coding-plan-api-key"
+  mcp:
+    web-search-url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp"
+    log-enabled: false
+```
+
+`McpConfig` 会在应用启动时创建 MCP 客户端和 `McpToolProvider`，并将智谱提供的 `webSearchPrime` 工具注册到现有 Agent。涉及最新动态、实时信息或外部事实核验的问题时，Agent 可自主调用联网搜索。MCP 是必需依赖，未配置有效 API Key 或服务无法连接时，应用会启动失败。

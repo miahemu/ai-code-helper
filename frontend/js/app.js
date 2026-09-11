@@ -133,7 +133,7 @@ function renderWelcome() {
     const suggestions = document.createElement('div');
     suggestions.className = 'suggestions';
 
-    ['介绍一下你能做什么', '总结知识库中的核心内容', '出几道 Java 并发面试题'].forEach(text => {
+    ['介绍一下你能做什么', '总结知识库中的核心内容', '搜索最新的 AI 行业动态', '出几道 Java 并发面试题'].forEach(text => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'suggestion-button';
