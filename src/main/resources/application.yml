@@ -45,6 +45,10 @@ agent:
 
 bigmodel:
   # GLM Coding Plan 专属 API Key
+  # Token plan：https://bigmodel.cn/coding-plan/personal/overview
+  # 余额总览：https://bigmodel.cn/finance-center/finance/overview
+  # 本地启动 MCP 服务: https://mcp.so/servers/cc-zhipu-web-search
+  # 远程 MCP 服务: https://docs.bigmodel.cn/cn/coding-plan/mcp/search-mcp-server
   api-key: "xxxxxxxxxxx"
   mcp:
     web-search-url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp"
