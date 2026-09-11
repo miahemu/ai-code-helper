@@ -17,8 +17,8 @@ http:
 
 ai:
   chat:
-    # OpenAI 兼容的 Chat Completions 完整地址
-    url: "xxxxxxxx"
+    # DeepSeek API 官方文档：https://api-docs.deepseek.com/
+    base_url: "xxxxxxxx"
     api-key: "xxxxxxxxx"
     model: "DeepSeek-V4-Pro"
   chat-memory:
@@ -42,9 +42,6 @@ ai:
     local-keyword-filter-enabled: true
 
 agent:
-  # true： 新Agent流程
-  # false： 固定 RAG 流程
-  enabled: true
   # LangChain4j 单次任务允许的最大工具调用轮数，避免异常情况下无限循环
   max-steps: 5
   # 是否记录 Agent 执行结果和工具调用数量

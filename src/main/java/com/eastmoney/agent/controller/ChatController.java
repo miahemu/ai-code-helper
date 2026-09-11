@@ -30,7 +30,7 @@ public class ChatController {
     private ChatService chatService;
 
     /**
-     * 根据知识库检索结果生成回答
+     * 执行 AI Agent 对答
      */
     @PostMapping("ask")
     public RestResponse<?> ask(@Valid @RequestBody ChatReqVO request) {

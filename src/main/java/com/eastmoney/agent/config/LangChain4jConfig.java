@@ -1,7 +1,6 @@
 package com.eastmoney.agent.config;
 
 import com.eastmoney.agent.service.AgentAssistant;
-import com.eastmoney.agent.service.FixedRagAssistant;
 import com.eastmoney.agent.tool.InterviewQuestionTool;
 import com.eastmoney.agent.tool.KnowledgeSearchTool;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
@@ -26,7 +25,7 @@ public class LangChain4jConfig {
 
     private static final String CHAT_COMPLETIONS_PATH = "/chat/completions";
 
-    @Value("${ai.chat.url}")
+    @Value("${ai.chat.base_url}")
     private String chatUrl;
 
     @Value("${ai.chat.api-key}")
@@ -44,6 +43,9 @@ public class LangChain4jConfig {
     @Value("${ai.chat-memory.max-messages}")
     private Integer maxMemoryMessages;
 
+    /**
+     * 创建基于 OpenAI Chat Completions 兼容协议的聊天模型客户端
+     */
     @Bean
     public ChatModel chatModel() {
         return OpenAiChatModel.builder()
@@ -78,17 +80,6 @@ public class LangChain4jConfig {
                 .chatMemoryProvider(chatMemoryProvider)
                 .tools(knowledgeSearchTool, interviewQuestionTool)
                 .maxToolCallingRoundTrips(Math.max(1, maxSteps))
-                .build();
-    }
-
-    /**
-     * 固定 RAG 模式使用该 Assistant，检索由 ChatServiceImpl 在模型调用前完成
-     */
-    @Bean
-    public FixedRagAssistant fixedRagAssistant(ChatModel chatModel, ChatMemoryProvider chatMemoryProvider) {
-        return AiServices.builder(FixedRagAssistant.class)
-                .chatModel(chatModel)
-                .chatMemoryProvider(chatMemoryProvider)
                 .build();
     }
 
