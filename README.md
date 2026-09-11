@@ -31,6 +31,7 @@ Maven 构建时会将 `frontend` 自动复制到应用的 `static` 目录，因�
 - LangChain4j OpenAI 兼容的 Embedding、Chat Model
 - 基于 LangChain4j AI Services 的 Tool Calling Agent，当前提供知识库检索工具
 - 可选接入智谱 Web Search MCP，为 Agent 提供联网搜索能力
+- 基于 LangChain4j Guardrails 的输入和输出安全检查
 - 基于 `ChatMemoryProvider` 的多会话记忆，并通过 `MessageWindowChatMemory` 限制历史消息数量
 - 模型、Embedding、Elasticsearch 均通过 `application.yml` 配置
 
@@ -211,4 +212,4 @@ bigmodel:
     log-enabled: false
 ```
 
-`McpConfig` 会在应用启动时创建 MCP 客户端和 `McpToolProvider`，并将智谱提供的 `webSearchPrime` 工具注册到现有 Agent。涉及最新动态、实时信息或外部事实核验的问题时，Agent 可自主调用联网搜索。MCP 是必需依赖，未配置有效 API Key 或服务无法连接时，应用会启动失败。
+`McpConfig` 会在应用启动时创建 MCP 客户端和 `McpToolProvider`，并将智谱 MCP 服务提供的工具标记为联网搜索工具后注册到现有 Agent。业务逻辑按工具标记识别联网搜索能力，不依赖服务端具体工具名。涉及最新动态、实时信息或外部事实核验的问题时，Agent 可自主调用联网搜索。MCP 是必需依赖，未配置有效 API Key 或服务无法连接时，应用会启动失败。
