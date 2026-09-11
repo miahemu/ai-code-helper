@@ -25,6 +25,8 @@ public class LangChain4jConfig {
 
     private static final String CHAT_COMPLETIONS_PATH = "/chat/completions";
 
+    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(60);
+
     @Value("${ai.chat.base_url}")
     private String chatUrl;
 
@@ -33,9 +35,6 @@ public class LangChain4jConfig {
 
     @Value("${ai.chat.model}")
     private String chatModelName;
-
-    @Value("${http.read-timeout}")
-    private Integer readTimeout;
 
     @Value("${agent.max-steps}")
     private Integer maxSteps;
@@ -53,7 +52,7 @@ public class LangChain4jConfig {
                 .apiKey(chatApiKey)
                 .modelName(chatModelName)
                 .temperature(0.3D)
-                .timeout(Duration.ofMillis(readTimeout))
+                .timeout(CHAT_TIMEOUT)
                 .build();
     }
 

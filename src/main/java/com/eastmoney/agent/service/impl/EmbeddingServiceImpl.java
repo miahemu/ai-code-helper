@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+
 /**
  * @Author: suyue
  * @name: EmbeddingServiceImpl
@@ -23,6 +24,8 @@ import java.time.Duration;
 public class EmbeddingServiceImpl implements EmbeddingService {
 
     private static final String EMBEDDINGS_PATH = "/embeddings";
+
+    private static final Duration EMBEDDING_TIMEOUT = Duration.ofSeconds(60);
 
     /** OpenAI 兼容的 Embeddings 完整地址 */
     @Value("${ai.embedding.url}")
@@ -40,9 +43,6 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     @Value("${ai.embedding.dimensions}")
     private Integer embeddingDimensions;
 
-    @Value("${http.read-timeout}")
-    private Integer readTimeout;
-
     private EmbeddingModel embeddingModel;
 
     /**
@@ -57,7 +57,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
                 .baseUrl(resolveBaseUrl(embeddingUrl))
                 .apiKey(embeddingApiKey)
                 .modelName(embeddingModelName)
-                .timeout(Duration.ofMillis(readTimeout))
+                .timeout(EMBEDDING_TIMEOUT)
                 .build();
     }
 

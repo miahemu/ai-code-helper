@@ -11,10 +11,6 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
-http:
-  connect-timeout: 10000
-  read-timeout: 60000
-
 ai:
   chat:
     # DeepSeek API 官方文档：https://api-docs.deepseek.com/

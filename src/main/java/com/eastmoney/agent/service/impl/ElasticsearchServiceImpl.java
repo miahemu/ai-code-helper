@@ -193,8 +193,7 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
         String baseUrl = elasticsearchUrl.endsWith("/")
                 ? elasticsearchUrl.substring(0, elasticsearchUrl.length() - 1)
                 : elasticsearchUrl;
-        ResponseEntity<Map> response = restTemplate.exchange(
-                baseUrl + path, method, entity, Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(baseUrl + path, method, entity, Map.class);
         return response.getBody();
     }
 }

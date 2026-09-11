@@ -23,6 +23,8 @@ public class McpConfig {
 
     private static final String AUTHORIZATION = "Authorization";
 
+    private static final Duration MCP_TIMEOUT = Duration.ofSeconds(60);
+
     @Value("${bigmodel.api-key}")
     private String apiKey;
 
@@ -31,9 +33,6 @@ public class McpConfig {
 
     @Value("${bigmodel.mcp.log-enabled:false}")
     private Boolean logEnabled;
-
-    @Value("${http.read-timeout}")
-    private Integer readTimeout;
 
     /**
      * 创建智谱联网搜索 MCP 客户端
@@ -47,7 +46,7 @@ public class McpConfig {
         McpTransport transport = StreamableHttpMcpTransport.builder()
                 .url(webSearchUrl)
                 .customHeaders(Map.of(AUTHORIZATION, "Bearer " + apiKey))
-                .timeout(Duration.ofMillis(readTimeout))
+                .timeout(MCP_TIMEOUT)
                 .logRequests(Boolean.TRUE.equals(logEnabled))
                 .logResponses(Boolean.TRUE.equals(logEnabled))
                 .build();
