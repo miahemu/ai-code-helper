@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" fill="none">
+    <defs>
+        <linearGradient id="leftFlowA" x1="-120" y1="80" x2="640" y2="420" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#3157D5" stop-opacity="0"/>
+            <stop offset="0.3" stop-color="#3157D5" stop-opacity="0.10"/>
+            <stop offset="0.72" stop-color="#667FE0" stop-opacity="0.05"/>
+            <stop offset="1" stop-color="#8799E6" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="leftFlowB" x1="-120" y1="480" x2="600" y2="780" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#8069D9" stop-opacity="0"/>
+            <stop offset="0.32" stop-color="#8069D9" stop-opacity="0.07"/>
+            <stop offset="0.75" stop-color="#7188DE" stop-opacity="0.035"/>
+            <stop offset="1" stop-color="#7188DE" stop-opacity="0"/>
+        </linearGradient>
+
+        <linearGradient id="rightFlowA" x1="1560" y1="60" x2="800" y2="440" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#30AFA4" stop-opacity="0"/>
+            <stop offset="0.3" stop-color="#30AFA4" stop-opacity="0.09"/>
+            <stop offset="0.72" stop-color="#4B8FD2" stop-opacity="0.045"/>
+            <stop offset="1" stop-color="#4B8FD2" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="rightFlowB" x1="1560" y1="500" x2="840" y2="800" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#4F9CCB" stop-opacity="0"/>
+            <stop offset="0.32" stop-color="#4F9CCB" stop-opacity="0.07"/>
+            <stop offset="0.75" stop-color="#6685D8" stop-opacity="0.035"/>
+            <stop offset="1" stop-color="#6685D8" stop-opacity="0"/>
+        </linearGradient>
+    </defs>
+
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+
+        <path
+                d="M-180 120
+           C 80 155, 260 235, 430 350
+           C 520 410, 570 455, 625 520"
+                stroke="url(#leftFlowA)"
+                stroke-width="0.8"
+        />
+        <path
+                d="M-160 205
+           C 70 225, 245 300, 400 415
+           C 500 490, 555 535, 605 600"
+                stroke="url(#leftFlowA)"
+                stroke-width="0.55"
+        />
+        <path
+                d="M-130 315
+           C 75 330, 225 395, 355 490
+           C 440 550, 495 600, 535 660"
+                stroke="url(#leftFlowA)"
+                stroke-width="0.45"
+                opacity="0.65"
+        />
+        <path
+                d="M-160 590
+           C 70 610, 205 675, 345 770
+           C 415 818, 465 855, 505 900"
+                stroke="url(#leftFlowB)"
+                stroke-width="0.55"
+        />
+
+        <path
+                d="M1610 105
+           C 1390 145, 1210 225, 1055 345
+           C 965 415, 900 475, 840 535"
+                stroke="url(#rightFlowA)"
+                stroke-width="0.75"
+        />
+        <path
+                d="M1590 215
+           C 1380 245, 1235 315, 1090 425
+           C 1000 495, 940 555, 885 620"
+                stroke="url(#rightFlowA)"
+                stroke-width="0.5"
+        />
+        <path
+                d="M1580 335
+           C 1390 355, 1250 420, 1125 515
+           C 1045 575, 990 630, 950 685"
+                stroke="url(#rightFlowA)"
+                stroke-width="0.4"
+                opacity="0.6"
+        />
+
+        <path
+                d="M1600 600
+           C 1380 625, 1225 690, 1085 780
+           C 1005 832, 955 870, 915 905"
+                stroke="url(#rightFlowB)"
+                stroke-width="0.5"
+        />
+
+    </g>
+</svg>
