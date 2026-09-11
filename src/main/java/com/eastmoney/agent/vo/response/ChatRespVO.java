@@ -21,4 +21,7 @@ public class ChatRespVO {
 
     // 本次回答引用的知识库片段
     private List<KnowledgeReferenceRespVO> references;
+
+    // 本次回答引用的相关网页
+    private List<RelatedUrlRespVO> relatedUrls;
 }

@@ -173,6 +173,27 @@ button:disabled {
     gap: 6px;
     color: var(--muted);
     font-size: 12px;
+    white-space: nowrap;
+}
+
+.top-k-help {
+    display: inline-grid;
+    width: 15px;
+    height: 15px;
+    place-items: center;
+    border: 1px solid #c9d2e2;
+    border-radius: 50%;
+    color: #7a879d;
+    background: white;
+    cursor: help;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.top-k-help:focus-visible {
+    outline: 2px solid rgba(49, 87, 213, 0.3);
+    outline-offset: 2px;
 }
 
 .top-k-field select {
@@ -486,6 +507,10 @@ button:disabled {
 .inline-reference:focus-visible {
     outline: 2px solid rgba(49, 87, 213, 0.35);
     outline-offset: 2px;
+}
+
+.inline-related-url {
+    text-decoration: none;
 }
 
 .references {

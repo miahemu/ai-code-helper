@@ -6,7 +6,7 @@
     <meta name="description" content="Diving 智能助手，支持通用问答、知识库检索与智能工具">
     <title>Diving 智能助手</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="/css/index.css?v=20260910">
+    <link rel="stylesheet" href="/css/index.css?v=20260911-2">
 </head>
 <body>
 <div class="app-shell">
@@ -33,13 +33,17 @@
                 </div>
                 <div class="chat-tools">
                     <label class="top-k-field" for="topK">
-                        <span>知识召回数</span>
-                        <select id="topK">
+                        <span>最多参考</span>
+                        <select id="topK" aria-label="每次回答参考的知识库片段数量">
                             <option value="3">3</option>
                             <option value="4" selected>4</option>
                             <option value="6">6</option>
                             <option value="8">8</option>
                         </select>
+                        <span>段资料</span>
+                        <span class="top-k-help" tabindex="0"
+                              title="数量越大，参考的知识库内容越多，回答覆盖更广，但也可能混入不太相关的信息。"
+                              aria-label="数量越大，参考范围越广，但也可能混入不太相关的信息">?</span>
                     </label>
                     <button id="clearChatBtn" class="ghost-button" type="button">清空对话</button>
                 </div>
@@ -169,6 +173,6 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="/js/app.js?v=20260911"></script>
+<script type="module" src="/js/app.js?v=20260911-3"></script>
 </body>
 </html>

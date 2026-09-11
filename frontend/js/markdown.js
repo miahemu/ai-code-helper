@@ -2,7 +2,7 @@
  * 向节点中追加加粗、斜体和行内代码等 Markdown 内容。
  */
 function appendInlineMarkdown(container, text, context) {
-    const pattern = /(【资料\d+】|\[资料\d+]|\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g;
+    const pattern = /(【资料\d+】|\[资料\d+]|【相关网址\d+】|\[相关网址\d+]|\*\*[^*\n]+\*\*|`[^`\n]+`|\*[^*\n]+\*)/g;
     let lastIndex = 0;
     let match;
     while ((match = pattern.exec(text)) !== null) {
@@ -23,6 +23,26 @@ function appendInlineMarkdown(container, text, context) {
                 button.addEventListener('click', () => context.onReferenceClick(reference));
                 container.appendChild(button);
                 context.referencedIndexes.add(referenceIndex);
+            } else {
+                container.appendChild(document.createTextNode(token));
+            }
+            lastIndex = pattern.lastIndex;
+            continue;
+        }
+        const relatedUrlToken = token.match(/^(?:【相关网址(\d+)】|\[相关网址(\d+)])$/);
+        if (relatedUrlToken) {
+            const relatedUrlNumber = Number(relatedUrlToken[1] || relatedUrlToken[2]);
+            const relatedUrl = context.relatedUrls[relatedUrlNumber - 1];
+            if (relatedUrl) {
+                const link = document.createElement('a');
+                link.className = 'inline-reference inline-related-url';
+                link.textContent = '相关网址';
+                link.href = relatedUrl.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.title = `打开网页：${relatedUrl.title}`;
+                link.setAttribute('aria-label', `打开相关网页：${relatedUrl.title}`);
+                container.appendChild(link);
             } else {
                 container.appendChild(document.createTextNode(token));
             }
@@ -152,14 +172,15 @@ function appendTable(container, lines, startIndex, context) {
  *
  * @param {HTMLElement} container 渲染容器
  * @param {string} markdown Markdown 文本
- * @param {{references?: Array, onReferenceClick?: Function}} options 渲染选项
- * @return {Set<number>} 已渲染的引用下标
+ * @param {{references?: Array, relatedUrls?: Array, onReferenceClick?: Function}} options 渲染选项
+ * @return {Set<number>} 已渲染的知识库引用下标
  */
 export function renderMarkdown(container, markdown, options = {}) {
     const content = normalizeMarkdown(markdown);
     const lines = content.split('\n');
     const context = {
         references: options.references || [],
+        relatedUrls: options.relatedUrls || [],
         onReferenceClick: options.onReferenceClick || (() => {}),
         referencedIndexes: new Set()
     };

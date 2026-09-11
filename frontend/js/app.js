@@ -1,5 +1,5 @@
 import {request} from './api.js';
-import {renderDocumentContent, renderMarkdown} from './markdown.js';
+import {renderDocumentContent, renderMarkdown} from './markdown.js?v=20260911-3';
 
 const elements = {
     askButton: document.getElementById('askBtn'),
@@ -179,7 +179,7 @@ function appendReferenceList(message, references) {
     message.appendChild(referenceList);
 }
 
-function appendMessage(type, text, references) {
+function appendMessage(type, text, references, relatedUrls) {
     const welcome = elements.chatList.querySelector('.welcome');
     if (welcome) {
         welcome.remove();
@@ -197,6 +197,7 @@ function appendMessage(type, text, references) {
         row.appendChild(avatar);
         const referencedIndexes = renderMarkdown(message, text, {
             references,
+            relatedUrls,
             onReferenceClick: openReference
         });
         if (references && references.length && referencedIndexes.size === 0) {
@@ -265,7 +266,7 @@ async function ask() {
             body: JSON.stringify({conversationId, question, topK: Number(elements.topK.value)})
         });
         loadingMessage.remove();
-        appendMessage('assistant', data.answer, data.references);
+        appendMessage('assistant', data.answer, data.references, data.relatedUrls);
     } catch (error) {
         loadingMessage.remove();
         appendMessage('assistant', '请求失败：' + error.message);

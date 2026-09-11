@@ -20,7 +20,7 @@ public interface AgentAssistant {
 
     @SystemMessage(fromResource = "prompts/agent-assistant-system.txt")
     @InputGuardrails(SafeInputGuardrail.class)
-    @OutputGuardrails(value = SafeOutputGuardrail.class, maxRetries = 1)
+    @OutputGuardrails(value = SafeOutputGuardrail.class, maxRetries = 2)
     Result<String> chat(@MemoryId String conversationId, @UserMessage String question,
                         @V("topK") Integer topK, @V("currentDate") String currentDate);
 

@@ -61,7 +61,7 @@ public final class WebSearchRequestTransformer {
                 .build();
     }
 
-    static boolean requiresWebSearch(String question) {
+    public static boolean requiresWebSearch(String question) {
         return question != null && REQUIRED_PATTERN.matcher(question).find();
     }
 

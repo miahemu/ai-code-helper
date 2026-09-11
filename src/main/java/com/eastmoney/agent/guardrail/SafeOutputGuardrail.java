@@ -1,8 +1,12 @@
 package com.eastmoney.agent.guardrail;
 
+import com.eastmoney.agent.config.WebSearchRequestTransformer;
 import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.guardrail.OutputGuardrail;
+import dev.langchain4j.guardrail.OutputGuardrailRequest;
 import dev.langchain4j.guardrail.OutputGuardrailResult;
+import dev.langchain4j.invocation.InvocationContext;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -35,6 +39,34 @@ public class SafeOutputGuardrail implements OutputGuardrail {
             Pattern.compile("(?i)javascript\\s*:"),
             Pattern.compile("(?i)data\\s*:\\s*text/html")
     );
+
+    private static final Pattern WEB_SOURCE_PATTERN = Pattern.compile(
+            "\\[[^\\]\\r\\n]+]\\(https?://[^\\s)]+\\)", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * 联网问题除安全检查外，还必须在正文中包含可跳转的 Markdown 来源链接
+     */
+    @Override
+    public OutputGuardrailResult validate(OutputGuardrailRequest request) {
+        AiMessage aiMessage = request.responseFromLLM().aiMessage();
+        OutputGuardrailResult safetyResult = validate(aiMessage);
+        if (!safetyResult.isSuccess() || aiMessage.hasToolExecutionRequests()) {
+            return safetyResult;
+        }
+
+        String outputText = aiMessage.text();
+        InvocationContext invocationContext = request.requestParams().invocationContext();
+        UserMessage userMessage = invocationContext == null ? null : invocationContext.userMessage();
+        if (outputText != null && !outputText.isBlank()
+                && userMessage != null && userMessage.hasSingleText()
+                && WebSearchRequestTransformer.requiresWebSearch(userMessage.singleText())
+                && !WEB_SOURCE_PATTERN.matcher(outputText).find()) {
+            return reprompt("联网回答缺少正文来源链接",
+                    "请根据联网搜索结果重新回答。每条事实或列表项末尾都要紧跟对应的标准 Markdown 来源链接"
+                            + " `[来源标题](真实URL)`，不要在回答末尾集中列出来源。请勿省略任何链接。");
+        }
+        return success();
+    }
 
     /**
      * 检查最终回答是否泄露系统信息、敏感凭证或包含危险链接
