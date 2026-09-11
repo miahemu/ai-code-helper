@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,13 +34,15 @@ import java.util.regex.Pattern;
 @Service
 public class ChatServiceImpl implements ChatService {
 
+    private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
+
     private static final Pattern AGENT_REFERENCE_PATTERN = Pattern.compile(
             "(?:【资料:([^】]+)】|\\[资料:([^\\]]+)])");
 
     private static final Pattern NUMBERED_REFERENCE_PATTERN = Pattern.compile(
             "(?:【资料(\\d+)】|\\[资料(\\d+)])");
 
-    @Value("${agent.trace-enabled:false}")
+    @Value("${agent.trace-enabled}")
     private Boolean traceEnabled;
 
     @Autowired
@@ -55,11 +59,15 @@ public class ChatServiceImpl implements ChatService {
      */
     @Override
     public ChatRespVO chat(ChatReqVO request) {
-        Result<String> agentResult = agentAssistant.chat(request.getConversationId(), request.getQuestion(), request.getTopK());
+        Result<String> agentResult = agentAssistant.chat(request.getConversationId(), request.getQuestion(),
+                request.getTopK(), LocalDate.now(BUSINESS_ZONE_ID).toString());
         List<ToolExecution> toolExecutions = agentResult.toolExecutions();
         if (Boolean.TRUE.equals(traceEnabled)) {
-            log.info("Agent 执行完成，finishReason={}，toolCallCount={}",
-                    agentResult.finishReason(), toolExecutions == null ? 0 : toolExecutions.size());
+            List<String> toolNames = toolExecutions == null ? List.of() : toolExecutions.stream()
+                    .map(toolExecution -> toolExecution.request().name())
+                    .toList();
+            log.info("Agent 执行完成，finishReason={}，toolCallCount={}，toolNames={}",
+                    agentResult.finishReason(), toolNames.size(), toolNames);
         }
         List<SearchResult> references = extractReferences(toolExecutions);
         String answer = normalizeAgentReferences(agentResult.content(), references);

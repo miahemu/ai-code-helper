@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -63,6 +64,21 @@ public class McpConfig {
     public McpToolProvider mcpToolProvider(McpClient webSearchMcpClient) {
         return McpToolProvider.builder()
                 .mcpClients(webSearchMcpClient)
+                .toolSpecificationMapper((client, toolSpecification) -> toolSpecification.toBuilder()
+                        .metadata(buildWebSearchToolMetadata(toolSpecification.metadata()))
+                        .build())
                 .build();
+    }
+
+    /**
+     * 复制工具原有元数据，并追加“这是联网搜索工具”的标记，供转换器识别且不依赖具体工具名
+     */
+    private Map<String, Object> buildWebSearchToolMetadata(Map<String, Object> sourceMetadata) {
+        Map<String, Object> metadata = new HashMap<>();
+        if (sourceMetadata != null) {
+            metadata.putAll(sourceMetadata);
+        }
+        metadata.put(WebSearchRequestTransformer.WEB_SEARCH_TOOL_METADATA_KEY, true);
+        return metadata;
     }
 }

@@ -67,6 +67,7 @@ public class LangChain4jConfig {
                         MessageWindowChatMemory.withMaxMessages(maxMemoryMessages)) // 每个会话独立存储
                 .tools(knowledgeSearchTool, interviewQuestionTool) //工具调用
                 .toolProvider(mcpToolProvider) // MCP 工具调用
+                .chatRequestTransformer(WebSearchRequestTransformer::transform) // 联网时效性转换器
                 .maxToolCallingRoundTrips(maxSteps)
                 .build();
     }
