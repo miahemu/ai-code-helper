@@ -5,14 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Diving 智能助手，支持通用问答、知识库检索与智能工具">
     <title>Diving 智能助手</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="/css/index.css?v=20260911-2">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260911-3">
+    <link rel="stylesheet" href="/css/index.css?v=20260911-7">
 </head>
 <body>
 <div class="app-shell">
     <header class="topbar">
         <div class="brand">
-            <div class="brand-mark">AI</div>
+            <div class="brand-mark">
+                <img src="/favicon.svg?v=20260911-3" alt="" aria-hidden="true">
+            </div>
             <div>
                 <h1>Diving 智能助手</h1>
                 <p>通用问答、知识库检索与智能工具</p>
@@ -56,13 +58,20 @@
                           placeholder="向 Diving 提问，Enter 发送，Shift + Enter 换行"></textarea>
                 <div class="composer-footer">
                     <span id="questionCount" class="character-count">0 / 2000</span>
-                    <div id="askButtonWrapper" class="send-button-wrapper">
-                        <button id="askBtn" class="send-button" type="button" aria-label="发送问题" disabled>
+                    <div class="composer-actions">
+                        <button id="stopBtn" class="stop-button" type="button" aria-label="停止生成" hidden>
                             <svg aria-hidden="true" viewBox="0 0 24 24">
-                                <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"></path>
+                                <rect x="7" y="7" width="10" height="10" rx="1"></rect>
                             </svg>
                         </button>
-                        <span id="askButtonTip" class="send-button-tooltip" role="tooltip">请输入你的问题</span>
+                        <div id="askButtonWrapper" class="send-button-wrapper">
+                            <button id="askBtn" class="send-button" type="button" aria-label="发送问题" disabled>
+                                <svg aria-hidden="true" viewBox="0 0 24 24">
+                                    <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"></path>
+                                </svg>
+                            </button>
+                            <span id="askButtonTip" class="send-button-tooltip" role="tooltip">请输入你的问题</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -173,6 +182,6 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="/js/app.js?v=20260911-3"></script>
+<script type="module" src="/js/app.js?v=20260911-8"></script>
 </body>
 </html>

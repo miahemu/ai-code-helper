@@ -35,6 +35,7 @@ const elements = {
     refreshDocumentsButton: document.getElementById('refreshDocumentsBtn'),
     selectedFile: document.getElementById('selectedFile'),
     status: document.getElementById('status'),
+    stopButton: document.getElementById('stopBtn'),
     title: document.getElementById('title'),
     toast: document.getElementById('toast'),
     topK: document.getElementById('topK'),
@@ -50,6 +51,27 @@ let pendingDeleteDocument = null;
 let selectedUploadFile = null;
 let toastTimer = null;
 let conversationId = createConversationId();
+let conversationVersion = 0;
+let activeRequest = null;
+const pendingQuestions = [];
+
+const DEFAULT_QUESTION_PLACEHOLDER = '向 Diving 提问，Enter 发送，Shift + Enter 换行';
+const FOLLOW_UP_QUESTION_PLACEHOLDER = '可继续输入补充问题，将在当前回答结束后发送';
+
+function createLogoImage() {
+    const image = document.createElement('img');
+    image.src = '/favicon.svg?v=20260911-3';
+    image.alt = '';
+    image.setAttribute('aria-hidden', 'true');
+    return image;
+}
+
+function createAssistantAvatar() {
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.appendChild(createLogoImage());
+    return avatar;
+}
 
 function createConversationId() {
     if (window.crypto && typeof window.crypto.randomUUID === 'function') {
@@ -125,7 +147,7 @@ function renderWelcome() {
     content.className = 'welcome-inner';
     const icon = document.createElement('div');
     icon.className = 'welcome-icon';
-    icon.textContent = '✦';
+    icon.appendChild(createLogoImage());
     const title = document.createElement('h2');
     title.textContent = '你好，我是 Diving';
     const description = document.createElement('p');
@@ -152,8 +174,16 @@ function renderWelcome() {
 }
 
 function clearChat() {
+    conversationVersion++;
+    pendingQuestions.length = 0;
+    if (activeRequest) {
+        activeRequest.controller.abort();
+        activeRequest = null;
+    }
+    asking = false;
     conversationId = createConversationId();
     renderWelcome();
+    updateAskButtonState();
 }
 
 function openReference(reference) {
@@ -191,10 +221,7 @@ function appendMessage(type, text, references, relatedUrls) {
     message.className = 'message';
 
     if (type === 'assistant') {
-        const avatar = document.createElement('div');
-        avatar.className = 'avatar';
-        avatar.textContent = 'AI';
-        row.appendChild(avatar);
+        row.appendChild(createAssistantAvatar());
         const referencedIndexes = renderMarkdown(message, text, {
             references,
             relatedUrls,
@@ -213,20 +240,68 @@ function appendMessage(type, text, references, relatedUrls) {
     return row;
 }
 
-function appendLoadingMessage() {
+function appendLoadingMessage(afterRow) {
     const row = document.createElement('div');
     row.className = 'message-row assistant-row';
-    const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.textContent = 'AI';
+    const avatar = createAssistantAvatar();
     const message = document.createElement('div');
     message.className = 'message loading-message';
     message.setAttribute('aria-label', '正在生成回答');
     message.append(document.createElement('span'), document.createElement('span'), document.createElement('span'));
     row.append(avatar, message);
-    elements.chatList.appendChild(row);
+    if (afterRow && afterRow.isConnected) {
+        afterRow.after(row);
+    } else {
+        elements.chatList.appendChild(row);
+    }
     elements.chatList.scrollTop = elements.chatList.scrollHeight;
     return row;
+}
+
+function replaceLoadingMessage(loadingMessage, text, references, relatedUrls) {
+    const nextRow = loadingMessage.nextSibling;
+    loadingMessage.remove();
+    const answerRow = appendMessage('assistant', text, references, relatedUrls);
+    if (nextRow) {
+        elements.chatList.insertBefore(answerRow, nextRow);
+    }
+    elements.chatList.scrollTop = elements.chatList.scrollHeight;
+}
+
+function appendPendingQuestion(questionInfo) {
+    const row = appendMessage('user', questionInfo.question);
+    row.classList.add('pending-row');
+    const footer = document.createElement('span');
+    footer.className = 'pending-message-footer';
+    const status = document.createElement('span');
+    status.className = 'pending-message-status';
+    status.textContent = '等待当前回答完成后发送';
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'pending-cancel-button';
+    cancelButton.textContent = '取消排队';
+    cancelButton.addEventListener('click', () => cancelPendingQuestion(questionInfo));
+    footer.append(status, cancelButton);
+    row.querySelector('.message').appendChild(footer);
+    return row;
+}
+
+function cancelPendingQuestion(questionInfo) {
+    const questionIndex = pendingQuestions.indexOf(questionInfo);
+    if (questionIndex < 0) {
+        return;
+    }
+    pendingQuestions.splice(questionIndex, 1);
+    questionInfo.row.remove();
+    showToast('已取消等待中的问题');
+}
+
+function markQuestionSending(row) {
+    if (!row) {
+        return;
+    }
+    row.classList.remove('pending-row');
+    row.querySelector('.pending-message-footer')?.remove();
 }
 
 function resizeQuestionInput() {
@@ -242,39 +317,97 @@ function updateQuestionCount() {
 
 function updateAskButtonState() {
     const hasQuestion = Boolean(elements.question.value.trim());
-    elements.askButton.disabled = asking || !hasQuestion;
-    elements.askButtonWrapper.classList.toggle('show-empty-tip', !asking && !hasQuestion);
-    elements.askButtonWrapper.classList.toggle('is-loading', asking);
-    elements.askButtonTip.textContent = asking ? '正在生成回答' : '请输入你的问题';
+    elements.askButton.disabled = !hasQuestion;
+    elements.askButtonWrapper.classList.toggle('show-empty-tip', !hasQuestion);
+    elements.askButtonWrapper.classList.remove('is-loading');
+    elements.askButtonTip.textContent = asking
+            ? '输入补充问题，将在当前回答结束后发送' : '请输入你的问题';
+    elements.stopButton.hidden = !asking;
+    elements.stopButton.disabled = !activeRequest;
+    elements.question.placeholder = asking
+            ? FOLLOW_UP_QUESTION_PLACEHOLDER : DEFAULT_QUESTION_PLACEHOLDER;
 }
 
-async function ask() {
+function ask() {
     const question = elements.question.value.trim();
-    if (!question || asking) {
+    if (!question) {
         return;
     }
 
-    asking = true;
-    appendMessage('user', question);
     elements.question.value = '';
     updateQuestionCount();
-    const loadingMessage = appendLoadingMessage();
+    const questionInfo = {
+        question,
+        topK: Number(elements.topK.value),
+        row: null
+    };
+    if (asking) {
+        questionInfo.row = appendPendingQuestion(questionInfo);
+        pendingQuestions.push(questionInfo);
+        showToast('补充问题已加入等待队列');
+        elements.question.focus();
+        return;
+    }
+    sendQuestion(questionInfo);
+}
+
+async function sendQuestion(questionInfo) {
+    const requestConversationId = conversationId;
+    const requestConversationVersion = conversationVersion;
+    asking = true;
+    const userRow = questionInfo.row || appendMessage('user', questionInfo.question);
+    markQuestionSending(userRow);
+    const loadingMessage = appendLoadingMessage(userRow);
+    const controller = new AbortController();
+    activeRequest = {controller, conversationVersion: requestConversationVersion};
+    updateAskButtonState();
     try {
         const data = await request('/api/chat/ask', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({conversationId, question, topK: Number(elements.topK.value)})
+            body: JSON.stringify({
+                conversationId: requestConversationId,
+                question: questionInfo.question,
+                topK: questionInfo.topK
+            }),
+            signal: controller.signal
         });
-        loadingMessage.remove();
-        appendMessage('assistant', data.answer, data.references, data.relatedUrls);
+        if (requestConversationVersion === conversationVersion) {
+            replaceLoadingMessage(loadingMessage, data.answer, data.references, data.relatedUrls);
+        }
     } catch (error) {
-        loadingMessage.remove();
-        appendMessage('assistant', '请求失败：' + error.message);
+        if (requestConversationVersion !== conversationVersion) {
+            return;
+        }
+        if (error.name === 'AbortError') {
+            replaceLoadingMessage(loadingMessage, '已停止生成。');
+        } else {
+            replaceLoadingMessage(loadingMessage, '请求失败：' + error.message);
+        }
     } finally {
+        if (requestConversationVersion !== conversationVersion) {
+            return;
+        }
+        if (activeRequest && activeRequest.controller === controller) {
+            activeRequest = null;
+        }
         asking = false;
         updateAskButtonState();
-        elements.question.focus();
+        const nextQuestion = pendingQuestions.shift();
+        if (nextQuestion) {
+            sendQuestion(nextQuestion);
+        } else {
+            elements.question.focus();
+        }
     }
+}
+
+function stopAnswer() {
+    if (!activeRequest) {
+        return;
+    }
+    elements.stopButton.disabled = true;
+    activeRequest.controller.abort();
 }
 
 async function uploadTextDocument() {
@@ -551,6 +684,7 @@ document.querySelectorAll('.tab-button').forEach(button => {
     button.addEventListener('click', () => switchTab(button.dataset.tab));
 });
 elements.askButton.addEventListener('click', ask);
+elements.stopButton.addEventListener('click', stopAnswer);
 elements.clearChatButton.addEventListener('click', clearChat);
 elements.contentViewerBackdrop.addEventListener('click', closeContentViewer);
 elements.contentViewerClose.addEventListener('click', closeContentViewer);
