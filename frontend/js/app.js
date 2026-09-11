@@ -127,13 +127,13 @@ function renderWelcome() {
     icon.className = 'welcome-icon';
     icon.textContent = '✦';
     const title = document.createElement('h2');
-    title.textContent = '从你的资料中快速找到答案';
+    title.textContent = '你好，我是 Diving';
     const description = document.createElement('p');
-    description.textContent = '先在右侧导入文档，然后直接提问。回答会标注使用到的知识片段，便于核对。';
+    description.textContent = '你可以直接提问。当问题需要内部资料时，我会自动检索右侧知识库并标注引用。';
     const suggestions = document.createElement('div');
     suggestions.className = 'suggestions';
 
-    ['总结文档的核心内容', '列出关键规则和注意事项', '根据资料给出操作建议'].forEach(text => {
+    ['介绍一下你能做什么', '总结知识库中的核心内容', '出几道 Java 并发面试题'].forEach(text => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'suggestion-button';

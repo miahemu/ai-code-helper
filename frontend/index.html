@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="基于知识库检索的智能问答应用">
-    <title>智能知识库</title>
+    <meta name="description" content="Diving 智能助手，支持通用问答、知识库检索与智能工具">
+    <title>Diving 智能助手</title>
     <link rel="stylesheet" href="/css/index.css?v=20260910">
 </head>
 <body>
@@ -13,8 +13,8 @@
         <div class="brand">
             <div class="brand-mark">AI</div>
             <div>
-                <h1>智能知识库</h1>
-                <p>文档解析、向量检索与智能问答</p>
+                <h1>Diving 智能助手</h1>
+                <p>通用问答、知识库检索与智能工具</p>
             </div>
         </div>
         <div class="system-status" aria-label="系统运行状态">
@@ -27,12 +27,12 @@
         <section class="panel chat-panel">
             <div class="panel-header chat-header">
                 <div>
-                    <div class="panel-title">知识问答</div>
-                    <div class="panel-subtitle">回答将优先引用已导入的文档内容</div>
+                    <div class="panel-title">智能对话</div>
+                    <div class="panel-subtitle">可直接提问，需要时会自动检索已导入的资料</div>
                 </div>
                 <div class="chat-tools">
                     <label class="top-k-field" for="topK">
-                        <span>召回数</span>
+                        <span>知识召回数</span>
                         <select id="topK">
                             <option value="3">3</option>
                             <option value="4" selected>4</option>
@@ -48,7 +48,7 @@
 
             <div class="composer">
                 <textarea id="question" rows="1" maxlength="2000"
-                          placeholder="基于知识库提问，Enter 发送，Shift + Enter 换行"></textarea>
+                          placeholder="向 Diving 提问，Enter 发送，Shift + Enter 换行"></textarea>
                 <div class="composer-footer">
                     <span id="questionCount" class="character-count">0 / 2000</span>
                     <div id="askButtonWrapper" class="send-button-wrapper">
@@ -168,6 +168,6 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="/js/app.js?v=20260910"></script>
+<script type="module" src="/js/app.js?v=20260911"></script>
 </body>
 </html>
