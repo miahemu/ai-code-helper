@@ -6,7 +6,7 @@
     <meta name="description" content="Diving 智能助手，支持通用问答、知识库检索与智能工具">
     <title>Diving 智能助手</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260911-3">
-    <link rel="stylesheet" href="/css/index.css?v=20260914-13">
+    <link rel="stylesheet" href="/css/index.css?v=20260914-23">
 </head>
 <body>
 <div class="app-shell">
@@ -27,6 +27,22 @@
     </header>
 
     <main class="workspace">
+        <aside class="panel conversation-panel" aria-label="会话列表">
+            <div class="conversation-panel-header">
+                <div>
+                    <div class="panel-title">会话</div>
+                    <div class="panel-subtitle">保存在当前浏览器中</div>
+                </div>
+                <button id="newConversationBtn" class="conversation-new-button" type="button"
+                        title="新建对话" aria-label="新建对话">
+                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="conversationList" class="conversation-list" aria-live="polite"></div>
+        </aside>
+
         <section class="panel chat-panel">
             <div class="panel-header chat-header">
                 <div>
@@ -65,7 +81,7 @@
                 <div id="selectedKnowledgeDocuments" class="selected-knowledge-documents" hidden></div>
                 <textarea id="question" rows="1" maxlength="2000"
                           aria-controls="commandMenu" aria-autocomplete="list"
-                          placeholder="向 Diving 提问，输入 / 查看命令，Enter 发送"></textarea>
+                          placeholder="输入问题，Enter 发送，Shift + Enter 换行"></textarea>
                 <div class="composer-footer">
                     <span id="questionCount" class="character-count">0 / 2000</span>
                     <div class="composer-actions">
@@ -191,7 +207,22 @@
     </section>
 </div>
 
+<div id="conversationDeleteDialog" class="delete-dialog" hidden>
+    <button id="conversationDeleteBackdrop" class="delete-dialog-backdrop" type="button"
+            aria-label="取消删除会话"></button>
+    <section class="delete-dialog-panel conversation-delete-dialog-panel" role="dialog" aria-modal="true"
+             aria-labelledby="conversationDeleteTitle" aria-describedby="conversationDeleteDescription">
+        <button id="conversationDeleteClose" class="delete-dialog-close" type="button" aria-label="关闭">×</button>
+        <h2 id="conversationDeleteTitle">删除后，该对话将不可恢复</h2>
+        <p id="conversationDeleteDescription">删除后，该对话及其中的消息记录将被移除。</p>
+        <div class="delete-dialog-actions">
+            <button id="conversationDeleteCancel" class="dialog-button secondary" type="button">取消</button>
+            <button id="conversationDeleteConfirm" class="dialog-button danger" type="button">删除该对话</button>
+        </div>
+    </section>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="/js/app.js?v=20260914-6"></script>
+<script type="module" src="/js/app.js?v=20260914-14"></script>
 </body>
 </html>

@@ -1,16 +1,19 @@
 import {CHAT_COMMANDS, getCommandHelpMarkdown, getCommandSuggestions, getSkillsMarkdown,
     parseChatCommand} from './commands.js?v=20260914-3';
-import {elements} from './elements.js?v=20260914-5';
+import {elements} from './elements.js?v=20260914-7';
 import {renderMarkdown} from './markdown.js?v=20260911-3';
 import {chat, getDocuments, streamChat} from './route.js?v=20260914-3';
+import {loadActiveConversationId, loadConversations, saveActiveConversationId, saveConversations}
+    from './conversation-store.js?v=20260914-1';
 import {createLogoImage, openContentViewer, showToast} from './ui.js?v=20260914-2';
 
-const DEFAULT_QUESTION_PLACEHOLDER = '向 Diving 提问，输入 / 查看命令，Enter 发送';
+const DEFAULT_QUESTION_PLACEHOLDER = '输入问题，Enter 发送，Shift + Enter 换行';
 const FOLLOW_UP_QUESTION_PLACEHOLDER = '可继续输入补充问题，将在当前回答结束后发送';
 const KNOWLEDGE_COMMAND = '/kb';
 
 let asking = false;
-let conversationId = createConversationId();
+let conversations = loadConversations();
+let conversationId = resolveInitialConversationId();
 let conversationVersion = 0;
 let activeRequest = null;
 let selectedCommandIndex = 0;
@@ -18,6 +21,11 @@ let knowledgePickerOpen = false;
 let knowledgePickerLoading = false;
 let knowledgePickerDocuments = [];
 let selectedKnowledgeDocuments = [];
+let openConversationMenuId = null;
+let conversationMenuPortal = null;
+let editingConversationId = null;
+let pendingDeleteConversationId = null;
+let conversationDeleteTrigger = null;
 const pendingQuestions = [];
 
 function createConversationId() {
@@ -25,6 +33,397 @@ function createConversationId() {
         return window.crypto.randomUUID();
     }
     return `conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createConversation() {
+    return {
+        id: createConversationId(),
+        title: '新对话',
+        updatedAt: Date.now(),
+        messages: []
+    };
+}
+
+function resolveInitialConversationId() {
+    const activeConversationId = loadActiveConversationId();
+    const activeConversation = conversations.find(item => item.id === activeConversationId);
+    if (activeConversation) {
+        return activeConversation.id;
+    }
+    if (conversations.length) {
+        return conversations[0].id;
+    }
+    const conversation = createConversation();
+    conversations.push(conversation);
+    saveConversations(conversations);
+    saveActiveConversationId(conversation.id);
+    return conversation.id;
+}
+
+function getCurrentConversation() {
+    return conversations.find(item => item.id === conversationId);
+}
+
+function persistConversationState() {
+    conversations.sort((left, right) => right.updatedAt - left.updatedAt);
+    saveConversations(conversations);
+    saveActiveConversationId(conversationId);
+    renderConversationList();
+}
+
+function getConversationTitle(question) {
+    const commandInfo = parseChatCommand(question);
+    const title = commandInfo?.content || commandInfo?.command?.title || question;
+    const compactTitle = title.replace(/\s+/g, ' ').trim();
+    return compactTitle.length > 30 ? `${compactTitle.substring(0, 30)}…` : compactTitle;
+}
+
+function persistMessage(type, text, references = [], relatedUrls = [], knowledgeDocuments = []) {
+    const conversation = getCurrentConversation();
+    if (!conversation) {
+        return;
+    }
+    conversation.messages.push({
+        role: type,
+        text: text || '',
+        references: references || [],
+        relatedUrls: relatedUrls || [],
+        knowledgeDocuments: knowledgeDocuments || [],
+        createdAt: Date.now()
+    });
+    conversation.messages = conversation.messages.slice(-100);
+    if (type === 'user' && conversation.title === '新对话') {
+        conversation.title = getConversationTitle(text);
+    }
+    conversation.updatedAt = Date.now();
+    persistConversationState();
+}
+
+function getConversationGroup(updatedAt) {
+    const date = new Date(updatedAt);
+    if (Number.isNaN(date.getTime())) {
+        return '更早';
+    }
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayDiff = Math.floor((today - dateStart) / 86400000);
+    if (dayDiff <= 0) {
+        return '今天';
+    }
+    if (dayDiff < 7) {
+        return '7 天内';
+    }
+    return '更早';
+}
+
+function renderConversationList() {
+    if (!elements.conversationList) {
+        return;
+    }
+    conversationMenuPortal?.remove();
+    conversationMenuPortal = null;
+    elements.conversationList.replaceChildren();
+    if (!conversations.length) {
+        const empty = document.createElement('div');
+        empty.className = 'conversation-empty';
+        empty.textContent = '暂无对话';
+        elements.conversationList.appendChild(empty);
+        return;
+    }
+
+    let currentGroup = '';
+    conversations.forEach(conversation => {
+        const group = getConversationGroup(conversation.updatedAt);
+        if (group !== currentGroup) {
+            currentGroup = group;
+            const heading = document.createElement('div');
+            heading.className = 'conversation-group-title';
+            heading.textContent = group;
+            elements.conversationList.appendChild(heading);
+        }
+
+        const item = document.createElement('div');
+        item.className = `conversation-item${conversation.id === conversationId ? ' active' : ''}`;
+        const isEditing = conversation.id === editingConversationId;
+        let conversationContent;
+        if (isEditing) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'conversation-title-input';
+            input.value = conversation.title;
+            input.maxLength = 60;
+            input.setAttribute('aria-label', `重命名会话：${conversation.title}`);
+            input.addEventListener('click', event => event.stopPropagation());
+            input.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    saveConversationRename(conversation.id, input.value);
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    cancelConversationRename();
+                }
+            });
+            input.addEventListener('blur', () => saveConversationRename(conversation.id, input.value));
+            conversationContent = input;
+        } else {
+            const selectButton = document.createElement('button');
+            selectButton.type = 'button';
+            selectButton.className = 'conversation-select-button';
+            selectButton.title = conversation.title;
+            selectButton.setAttribute('aria-label', `打开会话：${conversation.title}`);
+            selectButton.addEventListener('click', () => switchConversation(conversation.id));
+            const title = document.createElement('span');
+            title.className = 'conversation-item-title';
+            title.textContent = conversation.title;
+            const meta = document.createElement('span');
+            meta.className = 'conversation-item-meta';
+            meta.textContent = `${conversation.messages.length} 条消息`;
+            selectButton.append(title, meta);
+            conversationContent = selectButton;
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'conversation-actions';
+        const menuButton = document.createElement('button');
+        menuButton.type = 'button';
+        menuButton.className = 'conversation-menu-button';
+        menuButton.title = '会话操作';
+        menuButton.setAttribute('aria-label', `会话操作：${conversation.title}`);
+        menuButton.setAttribute('aria-expanded', String(openConversationMenuId === conversation.id));
+        menuButton.textContent = '⋯';
+        menuButton.addEventListener('click', event => {
+            event.stopPropagation();
+            openConversationMenuId = openConversationMenuId === conversation.id
+                    ? null : conversation.id;
+            renderConversationList();
+        });
+
+        const menu = document.createElement('div');
+        menu.className = 'conversation-menu';
+        const menuOpen = openConversationMenuId === conversation.id;
+        menu.hidden = !menuOpen;
+        const renameButton = document.createElement('button');
+        renameButton.type = 'button';
+        renameButton.className = 'conversation-menu-item';
+        renameButton.textContent = '重命名';
+        prependConversationMenuIcon(renameButton, 'rename');
+        renameButton.addEventListener('click', event => {
+            event.stopPropagation();
+            openConversationMenuId = null;
+            renameConversation(conversation.id);
+        });
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'conversation-menu-item danger';
+        deleteButton.textContent = '删除';
+        prependConversationMenuIcon(deleteButton, 'delete');
+        deleteButton.addEventListener('click', event => {
+            event.stopPropagation();
+            openConversationMenuId = null;
+            openConversationDeleteDialog(conversation.id);
+        });
+        menu.append(renameButton, deleteButton);
+        actions.appendChild(menuButton);
+        if (menuOpen) {
+            menu.classList.add('conversation-menu-portal');
+            conversationMenuPortal = menu;
+            document.body.appendChild(menu);
+        } else {
+            actions.appendChild(menu);
+        }
+        item.append(conversationContent);
+        if (!isEditing) {
+            item.append(actions);
+        }
+        elements.conversationList.appendChild(item);
+        if (menuOpen) {
+            positionConversationMenu(menu, menuButton);
+        }
+    });
+}
+
+function positionConversationMenu(menu, menuButton) {
+    const buttonRect = menuButton.getBoundingClientRect();
+    const margin = 8;
+    const menuWidth = menu.offsetWidth;
+    let left = buttonRect.right + 6;
+    if (left + menuWidth > window.innerWidth - margin) {
+        left = buttonRect.left - menuWidth - 6;
+    }
+    left = Math.max(margin, Math.min(left, window.innerWidth - menuWidth - margin));
+    let top = buttonRect.bottom + 6;
+    if (top + menu.offsetHeight > window.innerHeight - margin) {
+        top = buttonRect.top - menu.offsetHeight - 6;
+    }
+    menu.style.left = `${left}px`;
+    menu.style.top = `${Math.max(margin, top)}px`;
+}
+
+function prependConversationMenuIcon(button, type) {
+    const icon = document.createElement('span');
+    icon.className = `conversation-menu-icon ${type}`;
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = type === 'rename'
+            ? '<svg viewBox="0 0 24 24"><path d="m4 16-.7 3.4L6.7 18 17.9 6.8a2.1 2.1 0 0 0-3-3L3 15z"></path><path d="m13.6 5.1 3.3 3.3"></path></svg>'
+            : '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>';
+    button.prepend(icon);
+}
+
+function renameConversation(targetConversationId) {
+    const conversation = conversations.find(item => item.id === targetConversationId);
+    if (!conversation) {
+        return;
+    }
+    openConversationMenuId = null;
+    editingConversationId = targetConversationId;
+    renderConversationList();
+    const input = elements.conversationList.querySelector('.conversation-title-input');
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+function saveConversationRename(targetConversationId, nextTitle) {
+    if (editingConversationId !== targetConversationId) {
+        return;
+    }
+    const title = nextTitle.trim();
+    editingConversationId = null;
+    if (!title) {
+        showToast('会话名称不能为空', true);
+        renderConversationList();
+        return;
+    }
+    const conversation = conversations.find(item => item.id === targetConversationId);
+    if (!conversation) {
+        renderConversationList();
+        return;
+    }
+    conversation.title = title.substring(0, 60);
+    conversation.updatedAt = Date.now();
+    persistConversationState();
+}
+
+function cancelConversationRename() {
+    editingConversationId = null;
+    renderConversationList();
+}
+
+function openConversationDeleteDialog(targetConversationId) {
+    const conversation = conversations.find(item => item.id === targetConversationId);
+    if (!conversation) {
+        return;
+    }
+    conversationMenuPortal?.remove();
+    conversationMenuPortal = null;
+    conversationDeleteTrigger = document.activeElement;
+    pendingDeleteConversationId = targetConversationId;
+    elements.conversationDeleteDescription.textContent =
+            `删除“${conversation.title}”后，该对话及其中的消息记录将被移除。`;
+    elements.conversationDeleteDialog.hidden = false;
+    document.body.classList.add('delete-dialog-open');
+    elements.conversationDeleteCancel.focus();
+}
+
+function closeConversationDeleteDialog() {
+    elements.conversationDeleteDialog.hidden = true;
+    document.body.classList.remove('delete-dialog-open');
+    pendingDeleteConversationId = null;
+    if (conversationDeleteTrigger && typeof conversationDeleteTrigger.focus === 'function') {
+        conversationDeleteTrigger.focus();
+    }
+    conversationDeleteTrigger = null;
+}
+
+function confirmConversationDelete() {
+    if (!pendingDeleteConversationId) {
+        return;
+    }
+    const targetConversationId = pendingDeleteConversationId;
+    closeConversationDeleteDialog();
+    deleteConversation(targetConversationId);
+    showToast('对话已删除');
+}
+
+function renderConversationMessages() {
+    const conversation = getCurrentConversation();
+    if (!conversation || !conversation.messages.length) {
+        renderWelcome();
+        return;
+    }
+    elements.chatList.replaceChildren();
+    conversation.messages.forEach(message => {
+        if (message.role === 'user' || message.role === 'assistant') {
+            appendMessage(message.role, message.text, message.references || [],
+                    message.relatedUrls || [], false, message.knowledgeDocuments || []);
+        }
+    });
+}
+
+function stopCurrentRequest() {
+    conversationVersion++;
+    pendingQuestions.length = 0;
+    if (activeRequest) {
+        activeRequest.controller.abort();
+        activeRequest = null;
+    }
+    asking = false;
+}
+
+function switchConversation(nextConversationId) {
+    if (nextConversationId === conversationId) {
+        return;
+    }
+    if (!conversations.some(item => item.id === nextConversationId)) {
+        return;
+    }
+    stopCurrentRequest();
+    conversationId = nextConversationId;
+    clearKnowledgeDocumentSelection();
+    renderConversationMessages();
+    persistConversationState();
+    updateQuestionCount();
+    elements.question.focus();
+}
+
+function createNewConversation() {
+    const currentConversation = getCurrentConversation();
+    if (currentConversation && !currentConversation.messages.length) {
+        elements.question.focus();
+        return;
+    }
+    stopCurrentRequest();
+    const conversation = createConversation();
+    conversations.unshift(conversation);
+    conversationId = conversation.id;
+    clearKnowledgeDocumentSelection();
+    renderConversationMessages();
+    persistConversationState();
+    updateQuestionCount();
+    elements.question.focus();
+}
+
+function deleteConversation(targetConversationId) {
+    const targetIndex = conversations.findIndex(item => item.id === targetConversationId);
+    if (targetIndex < 0) {
+        return;
+    }
+    openConversationMenuId = null;
+    const deletingCurrent = targetConversationId === conversationId;
+    conversations.splice(targetIndex, 1);
+    if (!conversations.length) {
+        conversations.push(createConversation());
+    }
+    if (deletingCurrent) {
+        stopCurrentRequest();
+        conversationId = conversations[0].id;
+        clearKnowledgeDocumentSelection();
+        renderConversationMessages();
+        updateQuestionCount();
+    }
+    persistConversationState();
 }
 
 function createAssistantAvatar() {
@@ -70,17 +469,7 @@ function renderWelcome() {
 }
 
 function clearChat() {
-    conversationVersion++;
-    pendingQuestions.length = 0;
-    if (activeRequest) {
-        activeRequest.controller.abort();
-        activeRequest = null;
-    }
-    asking = false;
-    conversationId = createConversationId();
-    clearKnowledgeDocumentSelection();
-    renderWelcome();
-    updateAskButtonState();
+    createNewConversation();
 }
 
 function openReference(reference) {
@@ -106,7 +495,28 @@ function appendReferenceList(message, references) {
     message.appendChild(referenceList);
 }
 
-function appendMessage(type, text, references, relatedUrls) {
+function appendKnowledgeDocumentContext(message, knowledgeDocuments) {
+    if (!knowledgeDocuments || !knowledgeDocuments.length) {
+        return;
+    }
+    const context = document.createElement('div');
+    context.className = 'message-knowledge-context';
+    const label = document.createElement('span');
+    label.className = 'message-knowledge-label';
+    label.textContent = '参考文档';
+    context.appendChild(label);
+    knowledgeDocuments.forEach(documentInfo => {
+        const chip = document.createElement('span');
+        chip.className = 'message-knowledge-chip';
+        chip.title = documentInfo.title || documentInfo.documentId || '知识库文档';
+        chip.textContent = documentInfo.title || documentInfo.documentId || '知识库文档';
+        context.appendChild(chip);
+    });
+    message.appendChild(context);
+}
+
+function appendMessage(type, text, references = [], relatedUrls = [], shouldPersist = true,
+        knowledgeDocuments = []) {
     const welcome = elements.chatList.querySelector('.welcome');
     if (welcome) {
         welcome.remove();
@@ -129,11 +539,15 @@ function appendMessage(type, text, references, relatedUrls) {
         }
     } else {
         message.textContent = text;
+        appendKnowledgeDocumentContext(message, knowledgeDocuments);
     }
 
     row.appendChild(message);
     elements.chatList.appendChild(row);
     elements.chatList.scrollTop = elements.chatList.scrollHeight;
+    if (shouldPersist) {
+        persistMessage(type, text, references, relatedUrls, knowledgeDocuments);
+    }
     return row;
 }
 
@@ -174,7 +588,8 @@ function updateStreamingMessage(loadingMessage, text) {
 }
 
 function appendPendingQuestion(questionInfo) {
-    const row = appendMessage('user', questionInfo.question);
+    const row = appendMessage('user', questionInfo.question, [], [], false,
+            questionInfo.knowledgeDocuments);
     row.classList.add('pending-row');
     const footer = document.createElement('span');
     footer.className = 'pending-message-footer';
@@ -484,6 +899,10 @@ function ask() {
         topK: Number(elements.topK.value),
         streamEnabled: elements.streamMode.checked,
         knowledgeDocumentIds: selectedKnowledgeDocuments.map(item => item.documentId),
+        knowledgeDocuments: selectedKnowledgeDocuments.map(item => ({
+            documentId: item.documentId,
+            title: item.title
+        })),
         row: null
     };
     elements.question.value = '';
@@ -503,7 +922,11 @@ async function sendQuestion(questionInfo) {
     const requestConversationId = conversationId;
     const requestConversationVersion = conversationVersion;
     asking = true;
-    const userRow = questionInfo.row || appendMessage('user', questionInfo.question);
+    const userRow = questionInfo.row || appendMessage('user', questionInfo.question, [], [], true,
+            questionInfo.knowledgeDocuments);
+    if (questionInfo.row) {
+        persistMessage('user', questionInfo.question, [], [], questionInfo.knowledgeDocuments);
+    }
     markQuestionSending(userRow);
     const loadingMessage = appendLoadingMessage(userRow);
     const controller = new AbortController();
@@ -584,6 +1007,19 @@ export function initChat() {
     elements.askButton.addEventListener('click', ask);
     elements.stopButton.addEventListener('click', stopAnswer);
     elements.clearChatButton.addEventListener('click', clearChat);
+    elements.newConversationButton.addEventListener('click', createNewConversation);
+    elements.conversationDeleteBackdrop.addEventListener('click', closeConversationDeleteDialog);
+    elements.conversationDeleteCancel.addEventListener('click', closeConversationDeleteDialog);
+    elements.conversationDeleteClose.addEventListener('click', closeConversationDeleteDialog);
+    elements.conversationDeleteConfirm.addEventListener('click', confirmConversationDelete);
+    document.addEventListener('click', event => {
+        if (openConversationMenuId === null
+                || event.target.closest('.conversation-actions')) {
+            return;
+        }
+        openConversationMenuId = null;
+        renderConversationList();
+    });
     elements.question.addEventListener('input', updateQuestionCount);
     elements.commandMenu.addEventListener('wheel', event => {
         if (elements.commandMenu.scrollHeight <= elements.commandMenu.clientHeight) {
@@ -629,6 +1065,12 @@ export function initChat() {
             }
         }, 120);
     });
-    renderWelcome();
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !elements.conversationDeleteDialog.hidden) {
+            closeConversationDeleteDialog();
+        }
+    });
+    renderConversationList();
+    renderConversationMessages();
     updateQuestionCount();
 }

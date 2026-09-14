@@ -18,6 +18,7 @@
 
 - 同步问答接口和基于 `Flux` 的 SSE 流式问答接口，页面可切换输出模式
 - 基于 `ChatMemoryProvider` 的多会话记忆
+- 浏览器本地保存多个会话的标题和展示消息，刷新后可恢复并切换
 - TXT、Markdown、PDF、DOC、DOCX 文件解析，以及文本直接导入
 - LangChain4j 递归文档切分，默认切片长度 500、重叠长度 80
 - LangChain4j AI Services Tool Calling Agent
@@ -38,6 +39,7 @@ ai-rag-demo
 │  └─ js
 │     ├─ api.js                HTTP 与 SSE 底层请求封装
 │     ├─ commands.js           斜杠命令定义与解析
+│     ├─ conversation-store.js 会话列表和展示消息的本地持久化
 │     ├─ route.js              后端接口调用
 │     ├─ elements.js           DOM 元素引用
 │     ├─ ui.js                 通用页面交互
@@ -228,7 +230,7 @@ mvn spring-boot:run
 
 浏览器访问：<http://localhost:3859>
 
-默认情况下，文档元数据、原文、切片、JSON 向量和聊天消息都保存在 `data/knowledge.db`，服务重启后仍可继续查询或沿用原会话。`chat-memory.max-messages` 控制每个会话持久化的消息窗口大小。
+默认情况下，文档元数据、原文、切片、JSON 向量和 Agent 聊天记忆保存在 `data/knowledge.db`，服务重启后仍可沿用原会话。页面侧的会话标题和展示消息保存在当前浏览器的 `localStorage` 中，用于刷新后恢复会话列表。`chat-memory.max-messages` 控制每个会话持久化的消息窗口大小。
 
 ## 斜杠命令
 
