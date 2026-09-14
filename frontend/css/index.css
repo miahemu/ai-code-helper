@@ -662,9 +662,12 @@ button:disabled {
     bottom: calc(100% + 9px);
     left: 0;
     z-index: 12;
-    max-height: 285px;
+    height: 285px;
+    max-height: min(285px, calc(100vh - 150px));
     padding: 6px;
-    overflow-y: auto;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     border: 1px solid #d8dfeb;
     border-radius: 13px;
     background: rgba(255, 255, 255, 0.98);

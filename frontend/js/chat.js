@@ -262,6 +262,8 @@ function updateCommandMenu() {
         button.addEventListener('click', () => selectCommand(command));
         elements.commandMenu.appendChild(button);
     });
+    elements.commandMenu.querySelector('.command-menu-item.active')
+            ?.scrollIntoView({block: 'nearest'});
     elements.commandMenu.hidden = false;
     elements.question.setAttribute('aria-expanded', 'true');
 }
@@ -583,6 +585,13 @@ export function initChat() {
     elements.stopButton.addEventListener('click', stopAnswer);
     elements.clearChatButton.addEventListener('click', clearChat);
     elements.question.addEventListener('input', updateQuestionCount);
+    elements.commandMenu.addEventListener('wheel', event => {
+        if (elements.commandMenu.scrollHeight <= elements.commandMenu.clientHeight) {
+            return;
+        }
+        event.preventDefault();
+        elements.commandMenu.scrollTop += event.deltaY;
+    }, {passive: false});
     elements.question.addEventListener('keydown', event => {
         if (!elements.commandMenu.hidden && event.key === 'ArrowDown') {
             event.preventDefault();
