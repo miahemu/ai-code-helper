@@ -6,13 +6,16 @@ import com.eastmoney.agent.tool.KnowledgeSearchTool;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * @Author: suyue
@@ -42,6 +45,9 @@ public class LangChain4jConfig {
     @Value("${ai.chat-memory.max-messages}")
     private Integer maxMemoryMessages;
 
+    @Resource
+    private ChatModelListener chatModelListener;
+
     /**
      * 创建基于 OpenAI Chat Completions 兼容协议的聊天模型客户端
      */
@@ -51,6 +57,7 @@ public class LangChain4jConfig {
                 .baseUrl(resolveBaseUrl(chatUrl, CHAT_COMPLETIONS_PATH))
                 .apiKey(chatApiKey)
                 .modelName(chatModelName)
+                .listeners(List.of(chatModelListener))
                 .temperature(0.3D)
                 .timeout(CHAT_TIMEOUT)
                 .build();
@@ -67,7 +74,7 @@ public class LangChain4jConfig {
                         MessageWindowChatMemory.withMaxMessages(maxMemoryMessages)) // 每个会话独立存储
                 .tools(knowledgeSearchTool, interviewQuestionTool) //工具调用
                 .toolProvider(mcpToolProvider) // MCP 工具调用
-                .chatRequestTransformer(WebSearchRequestTransformer::transform) // 联网时效性转换器
+                .chatRequestTransformer(WebSearchRequestTransformer::transform) // 联网时效性问题转换器
                 .maxToolCallingRoundTrips(maxSteps)
                 .build();
     }

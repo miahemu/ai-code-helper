@@ -30,9 +30,6 @@ public class ChatServiceImpl implements ChatService {
 
     private static final ZoneId BUSINESS_ZONE_ID = ZoneId.of("Asia/Shanghai");
 
-    @Value("${agent.trace-enabled}")
-    private Boolean traceEnabled;
-
     @Autowired
     private KnowledgeService knowledgeService;
 
@@ -53,13 +50,6 @@ public class ChatServiceImpl implements ChatService {
         Result<String> agentResult = agentAssistant.chat(request.getConversationId(), request.getQuestion(),
                 request.getTopK(), LocalDate.now(BUSINESS_ZONE_ID).toString());
         List<ToolExecution> toolExecutions = agentResult.toolExecutions();
-        if (Boolean.TRUE.equals(traceEnabled)) {
-            List<String> toolNames = toolExecutions == null ? List.of() : toolExecutions.stream()
-                    .map(toolExecution -> toolExecution.request().name())
-                    .toList();
-            log.info("Agent 执行完成，finishReason={}，toolCallCount={}，toolNames={}",
-                    agentResult.finishReason(), toolNames.size(), toolNames);
-        }
         ChatReferenceResult referenceResult = chatReferenceProcessor.process(agentResult.content(), toolExecutions);
         ChatRespVO result = new ChatRespVO();
         result.setAnswer(referenceResult.getAnswer());
