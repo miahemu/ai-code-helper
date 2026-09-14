@@ -37,6 +37,7 @@ ai-rag-demo
 │  ├─ css/index.css            页面样式
 │  └─ js
 │     ├─ api.js                HTTP 与 SSE 底层请求封装
+│     ├─ commands.js           斜杠命令定义与解析
 │     ├─ route.js              后端接口调用
 │     ├─ elements.js           DOM 元素引用
 │     ├─ ui.js                 通用页面交互
@@ -45,13 +46,15 @@ ai-rag-demo
 │     ├─ markdown.js           Markdown 安全渲染
 │     └─ app.js                页面初始化入口
 ├─ src/main/java/com/eastmoney/agent
-│  ├─ config                   模型、MCP 和请求转换配置
+│  ├─ config                   模型和 MCP 配置
 │  ├─ controller               对答与知识库接口
 │  ├─ guardrail                输入、输出安全检查
 │  ├─ listener                 模型调用日志监听
 │  ├─ reference                知识引用和网页链接处理
 │  ├─ service                  Agent 与业务服务
 │  ├─ tool                     Agent 本地工具
+│  ├─ transformer              Agent 请求工具路由
+│  ├─ enums                    命令和业务枚举
 │  └─ vo                       请求和响应对象
 ├─ src/main/resources
 │  ├─ prompts                  Agent 系统提示词
@@ -77,16 +80,24 @@ sequenceDiagram
     F->>C: POST /api/chat/askStream
     C->>S: chatStream(request)
     S->>A: chatStream(conversationId, question, topK)
-    A->>L: 问题、记忆和知识库工具
-    L-->>A: 调用 knowledge_search
-    A->>T: 检索用户知识库
-    T-->>A: 返回相关知识片段
-    A->>L: 回填知识库结果
-    opt 需要面试题或时效信息
-        L-->>A: 发起其他工具调用
-        A->>T: 执行面试题或联网搜索工具
-        T-->>A: 返回补充结果
-        A->>L: 根据补充结果继续生成
+    A->>L: 问题、记忆和可用工具
+    alt /kb 或问题需要内部资料
+        L-->>A: 调用 knowledge_search
+        A->>T: 检索用户知识库
+        T-->>A: 返回相关知识片段
+        A->>L: 根据知识库结果继续生成
+    else /web 或问题需要时效信息
+        L-->>A: 调用联网搜索工具
+        A->>T: 执行联网搜索
+        T-->>A: 返回搜索结果
+        A->>L: 根据搜索结果继续生成
+    else /interview 或问题需要面试题
+        L-->>A: 调用 interviewQuestionSearch
+        A->>T: 执行面试题搜索
+        T-->>A: 返回面试题列表
+        A->>L: 根据面试题结果继续生成
+    else 普通问题
+        L-->>A: 直接生成回答或自动选择工具
     end
     L-->>S: 持续返回回答分片
     S-->>F: content 事件
@@ -151,7 +162,7 @@ bigmodel:
 
 项目通过 Streamable HTTP 协议连接智谱 Web Search Prime MCP，并将服务端提供的工具注册到 Agent。当前 `McpConfig` 会在启动时创建客户端，因此必须配置有效的 GLM Coding Plan API Key，并保证 MCP 服务可访问，否则应用会启动失败。
 
-涉及最新动态、实时信息或外部事实核验的问题，Agent 会优先使用联网搜索工具。`log-enabled` 仅建议在调试 MCP 请求时开启。
+涉及最新动态、实时信息或外部事实核验的问题，Agent 会自动选择联网搜索工具。`log-enabled` 仅建议在调试 MCP 请求时开启。
 
 #### 智谱Token plan：
 https://bigmodel.cn/coding-plan/personal/overview
@@ -219,6 +230,21 @@ mvn spring-boot:run
 
 当前文档元数据和原文保存在应用内存中，服务重启后文档列表会清空。使用内存向量库时，知识切片也会同时清空。
 
+## 斜杠命令
+
+在聊天输入框中输入 `/` 会显示命令菜单：
+
+| 命令 | 说明 |
+| --- | --- |
+| `/auto 问题` | 由 Agent 根据问题自动选择是否使用工具 |
+| `/kb 问题` | 多选已导入文档，仅根据所选知识库范围回答 |
+| `/web 问题` | 仅使用联网搜索回答 |
+| `/interview 关键词` | 仅搜索相关技术面试题 |
+| `/skills` | 查看 Diving 当前可使用的能力 |
+| `/help` | 查看全部斜杠命令及说明 |
+
+选择 `/kb` 后，页面会显示已导入文档，可同时选择多个文档。所选文档会以标签形式显示在输入框上方，本次检索只会在这些文档中进行。
+
 ## 接口说明
 
 ### 对答接口
@@ -234,11 +260,12 @@ mvn spring-boot:run
 {
   "conversationId": "demo-session-1",
   "question": "下雨天衣服不干怎么办？",
-  "topK": 4
+  "topK": 4,
+  "knowledgeDocumentIds": []
 }
 ```
 
-`conversationId` 用于隔离会话记忆，`topK` 默认值为 4。
+`conversationId` 用于隔离会话记忆，`topK` 默认值为 4。`knowledgeDocumentIds` 用于限定知识库检索范围，空数组表示检索全部文档。
 
 
 ### 知识库接口

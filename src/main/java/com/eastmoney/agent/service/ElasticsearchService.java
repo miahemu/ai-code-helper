@@ -18,5 +18,7 @@ public interface ElasticsearchService {
 
     List<SearchResult> search(Embedding queryEmbedding, int topK);
 
+    List<SearchResult> search(Embedding queryEmbedding, int topK, List<String> documentIds);
+
     void deleteByDocumentId(String documentId);
 }

@@ -45,7 +45,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public ChatRespVO chat(ChatReqVO request) {
         Result<String> agentResult = agentAssistant.chat(request.getConversationId(), request.getQuestion(),
-                request.getTopK());
+                request.getTopK(), request.getKnowledgeDocumentIds());
         return buildChatResponse(agentResult.content(), agentResult.toolExecutions());
     }
 
@@ -60,7 +60,7 @@ public class ChatServiceImpl implements ChatService {
         return Flux.create(sink -> {
             List<ToolExecution> toolExecutions = new ArrayList<>();
             TokenStream tokenStream = agentAssistant.chatStream(request.getConversationId(), request.getQuestion(),
-                    request.getTopK());
+                    request.getTopK(), request.getKnowledgeDocumentIds());
             tokenStream.onPartialResponse(content -> {
                         ChatStreamRespVO event = new ChatStreamRespVO();
                         event.setType("content");

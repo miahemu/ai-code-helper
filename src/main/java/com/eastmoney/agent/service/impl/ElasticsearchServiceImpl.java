@@ -80,6 +80,19 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
      */
     @Override
     public List<SearchResult> search(Embedding queryEmbedding, int topK) {
+        return search(queryEmbedding, topK, null);
+    }
+
+    /**
+     * 使用 cosineSimilarity 脚本在指定文档范围内执行向量相似度检索
+     *
+     * @param queryEmbedding 问题向量
+     * @param topK 召回片段数量
+     * @param documentIds 限定检索的文档标识
+     * @return 知识库检索结果
+     */
+    @Override
+    public List<SearchResult> search(Embedding queryEmbedding, int topK, List<String> documentIds) {
         ensureIndex();
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("queryVector", queryEmbedding.vectorAsList());
@@ -89,7 +102,12 @@ public class ElasticsearchServiceImpl implements ElasticsearchService {
         script.put("params", params);
 
         Map<String, Object> scriptScore = new LinkedHashMap<>();
-        scriptScore.put("query", Collections.singletonMap("match_all", Collections.emptyMap()));
+        if (documentIds == null || documentIds.isEmpty()) {
+            scriptScore.put("query", Collections.singletonMap("match_all", Collections.emptyMap()));
+        } else {
+            Map<String, Object> terms = Collections.singletonMap("documentId", documentIds);
+            scriptScore.put("query", Collections.singletonMap("terms", terms));
+        }
         scriptScore.put("script", script);
 
         Map<String, Object> body = new LinkedHashMap<>();

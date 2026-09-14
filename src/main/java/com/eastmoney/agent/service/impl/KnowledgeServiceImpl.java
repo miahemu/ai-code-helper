@@ -237,18 +237,38 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     @Override
     public List<SearchResult> search(String question, Integer topK) {
+        return search(question, topK, null);
+    }
+
+    /**
+     * 在指定文档范围内检索相似知识片段；文档列表为空时保持原有的全库检索行为
+     *
+     * @param question 用户问题
+     * @param topK 召回片段数量
+     * @param documentIds 限定检索的文档标识
+     * @return 知识库检索结果
+     */
+    @Override
+    public List<SearchResult> search(String question, Integer topK, List<String> documentIds) {
         int actualTopK = Math.max(1, Math.min(topK, 20));
+        List<String> actualDocumentIds = documentIds == null ? new ArrayList<>() : documentIds.stream()
+                .filter(documentId -> documentId != null && !documentId.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
         Embedding queryEmbedding = embeddingService.embed(question);
         List<SearchResult> searchResults;
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
-            searchResults = elasticsearchService.search(queryEmbedding, actualTopK);
+            searchResults = elasticsearchService.search(queryEmbedding, actualTopK, actualDocumentIds);
         } else {
-            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+            EmbeddingSearchRequest.EmbeddingSearchRequestBuilder searchRequestBuilder = EmbeddingSearchRequest.builder()
                     .queryEmbedding(queryEmbedding)
                     .maxResults(actualTopK)
-                    .minScore(retrievalMinScore)
-                    .build();
-            searchResults = localStore.search(searchRequest).matches().stream()
+                    .minScore(retrievalMinScore);
+            if (!actualDocumentIds.isEmpty()) {
+                searchRequestBuilder.filter(MetadataFilterBuilder.metadataKey("documentId")
+                        .isIn(actualDocumentIds));
+            }
+            searchResults = localStore.search(searchRequestBuilder.build()).matches().stream()
                     .map(this::toSearchResult)
                     .collect(Collectors.toList());
         }

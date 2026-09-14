@@ -32,7 +32,7 @@ public class InterviewQuestionTool {
      * @param keyword 搜索关键词（如“redis”、“java 多线程”）
      * @return 面试题列表，若失败则返回错误信息
      */
-    @Tool(name = "interviewQuestionSearch", value = "根据关键词从面试鸭网站搜索相关面试题。"
+    @Tool(name = AgentToolConstants.INTERVIEW_SEARCH, value = "根据关键词从面试鸭网站搜索相关面试题。"
             + "当用户需要特定技术、编程概念或岗位相关的面试题时调用，参数应为清晰的搜索关键词。")
     public String searchInterviewQuestions(
             @P(name = "keyword", value = "面试题搜索关键词") String keyword) {

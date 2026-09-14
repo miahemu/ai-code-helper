@@ -1,5 +1,6 @@
 package com.eastmoney.agent.config;
 
+import com.eastmoney.agent.tool.AgentToolConstants;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.mcp.client.DefaultMcpClient;
 import dev.langchain4j.mcp.client.McpClient;
@@ -70,15 +71,13 @@ public class McpConfig {
                 .build();
     }
 
-    /**
-     * 复制工具原有元数据，并追加“这是联网搜索工具”的标记，供转换器识别且不依赖具体工具名
-     */
+
     private Map<String, Object> buildWebSearchToolMetadata(Map<String, Object> sourceMetadata) {
         Map<String, Object> metadata = new HashMap<>();
         if (sourceMetadata != null) {
             metadata.putAll(sourceMetadata);
         }
-        metadata.put(WebSearchRequestTransformer.WEB_SEARCH_TOOL_METADATA_KEY, true);
+        metadata.put(AgentToolConstants.WEB_SEARCH_METADATA_KEY, true);
         return metadata;
     }
 }

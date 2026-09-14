@@ -3,6 +3,7 @@ package com.eastmoney.agent.config;
 import com.eastmoney.agent.service.AgentAssistant;
 import com.eastmoney.agent.tool.InterviewQuestionTool;
 import com.eastmoney.agent.tool.KnowledgeSearchTool;
+import com.eastmoney.agent.transformer.AgentChatRequestTransformer;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.ChatModel;
@@ -85,7 +86,8 @@ public class LangChain4jConfig {
                                          StreamingChatModel streamingChatModel,
                                          KnowledgeSearchTool knowledgeSearchTool,
                                          InterviewQuestionTool interviewQuestionTool,
-                                         McpToolProvider mcpToolProvider) {
+                                         McpToolProvider mcpToolProvider,
+                                         AgentChatRequestTransformer agentChatRequestTransformer) {
         return AiServices.builder(AgentAssistant.class)
                 .chatModel(chatModel)
                 .streamingChatModel(streamingChatModel)
@@ -93,7 +95,7 @@ public class LangChain4jConfig {
                         MessageWindowChatMemory.withMaxMessages(maxMemoryMessages)) // 每个会话独立存储
                 .tools(knowledgeSearchTool, interviewQuestionTool) //工具调用
                 .toolProvider(mcpToolProvider) // MCP 工具调用
-                .chatRequestTransformer(WebSearchRequestTransformer::transform) // 知识库优先，时效性问题再联网
+                .chatRequestTransformer(agentChatRequestTransformer::transform) // 按命令或问题选择工具
                 .maxToolCallingRoundTrips(maxSteps)
                 .build();
     }

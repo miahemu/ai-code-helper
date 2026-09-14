@@ -1,15 +1,23 @@
-import {elements} from './elements.js?v=20260914-3';
+import {CHAT_COMMANDS, getCommandHelpMarkdown, getCommandSuggestions, getSkillsMarkdown,
+    parseChatCommand} from './commands.js?v=20260914-3';
+import {elements} from './elements.js?v=20260914-5';
 import {renderMarkdown} from './markdown.js?v=20260911-3';
-import {chat, streamChat} from './route.js?v=20260914-3';
+import {chat, getDocuments, streamChat} from './route.js?v=20260914-3';
 import {createLogoImage, openContentViewer, showToast} from './ui.js?v=20260914-2';
 
-const DEFAULT_QUESTION_PLACEHOLDER = '向 Diving 提问，Enter 发送，Shift + Enter 换行';
+const DEFAULT_QUESTION_PLACEHOLDER = '向 Diving 提问，输入 / 查看命令，Enter 发送';
 const FOLLOW_UP_QUESTION_PLACEHOLDER = '可继续输入补充问题，将在当前回答结束后发送';
+const KNOWLEDGE_COMMAND = '/kb';
 
 let asking = false;
 let conversationId = createConversationId();
 let conversationVersion = 0;
 let activeRequest = null;
+let selectedCommandIndex = 0;
+let knowledgePickerOpen = false;
+let knowledgePickerLoading = false;
+let knowledgePickerDocuments = [];
+let selectedKnowledgeDocuments = [];
 const pendingQuestions = [];
 
 function createConversationId() {
@@ -70,6 +78,7 @@ function clearChat() {
     }
     asking = false;
     conversationId = createConversationId();
+    clearKnowledgeDocumentSelection();
     renderWelcome();
     updateAskButtonState();
 }
@@ -206,9 +215,220 @@ function resizeQuestionInput() {
 }
 
 function updateQuestionCount() {
+    const commandInfo = parseChatCommand(elements.question.value);
+    if (selectedKnowledgeDocuments.length && commandInfo?.command?.name !== KNOWLEDGE_COMMAND) {
+        clearKnowledgeDocumentSelection();
+    }
     elements.questionCount.textContent = `${elements.question.value.length} / 2000`;
     resizeQuestionInput();
+    updateCommandMenu();
     updateAskButtonState();
+}
+
+function updateCommandMenu() {
+    if (knowledgePickerOpen) {
+        renderKnowledgePicker();
+        return;
+    }
+    const commands = getCommandSuggestions(elements.question.value);
+    elements.commandMenu.replaceChildren();
+    if (!commands.length) {
+        hideCommandMenu();
+        return;
+    }
+
+    selectedCommandIndex = Math.min(selectedCommandIndex, commands.length - 1);
+    commands.forEach((command, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'command-menu-item';
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', String(index === selectedCommandIndex));
+        button.classList.toggle('active', index === selectedCommandIndex);
+
+        const name = document.createElement('span');
+        name.className = 'command-menu-name';
+        name.textContent = command.name;
+        const content = document.createElement('span');
+        content.className = 'command-menu-content';
+        const title = document.createElement('strong');
+        title.textContent = command.title;
+        const description = document.createElement('span');
+        description.textContent = command.description;
+        content.append(title, description);
+        button.append(name, content);
+        // 鼠标点击命令时保持输入框焦点，避免 blur 定时器先关闭知识库选择器
+        button.addEventListener('mousedown', event => event.preventDefault());
+        button.addEventListener('click', () => selectCommand(command));
+        elements.commandMenu.appendChild(button);
+    });
+    elements.commandMenu.hidden = false;
+    elements.question.setAttribute('aria-expanded', 'true');
+}
+
+function hideCommandMenu() {
+    elements.commandMenu.hidden = true;
+    elements.question.setAttribute('aria-expanded', 'false');
+    selectedCommandIndex = 0;
+    knowledgePickerOpen = false;
+}
+
+async function selectCommand(command) {
+    elements.question.value = `${command.name} `;
+    if (command.name === KNOWLEDGE_COMMAND) {
+        await openKnowledgePicker();
+        return;
+    }
+    hideCommandMenu();
+    updateQuestionCount();
+    elements.question.focus();
+}
+
+async function openKnowledgePicker() {
+    knowledgePickerOpen = true;
+    knowledgePickerLoading = true;
+    renderKnowledgePicker();
+    elements.question.focus();
+    try {
+        knowledgePickerDocuments = await getDocuments();
+    } catch (error) {
+        knowledgePickerDocuments = [];
+        showToast('知识库读取失败：' + error.message, true);
+    } finally {
+        knowledgePickerLoading = false;
+        if (knowledgePickerOpen) {
+            renderKnowledgePicker();
+        }
+    }
+}
+
+function renderKnowledgePicker() {
+    elements.commandMenu.replaceChildren();
+
+    const title = document.createElement('div');
+    title.className = 'knowledge-picker-title';
+    title.textContent = '选择回答时使用的知识库文档（可多选）';
+    elements.commandMenu.appendChild(title);
+
+    if (knowledgePickerLoading) {
+        appendKnowledgePickerMessage('正在读取已导入文档…');
+    } else if (!knowledgePickerDocuments.length) {
+        appendKnowledgePickerMessage('暂无文档，请先在右侧导入资料');
+    } else {
+        knowledgePickerDocuments.forEach(documentInfo => {
+            const selected = selectedKnowledgeDocuments.some(item =>
+                    item.documentId === documentInfo.documentId);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `command-menu-item knowledge-picker-item${selected ? ' selected' : ''}`;
+            button.setAttribute('aria-pressed', String(selected));
+            button.addEventListener('mousedown', event => event.preventDefault());
+
+            const check = document.createElement('span');
+            check.className = 'knowledge-picker-check';
+            check.textContent = '✓';
+            const content = document.createElement('span');
+            content.className = 'command-menu-content';
+            const name = document.createElement('strong');
+            name.textContent = documentInfo.title;
+            const description = document.createElement('span');
+            description.textContent = `${documentInfo.documentType.toUpperCase()} · ${documentInfo.chunkCount} 个切片`;
+            content.append(name, description);
+            button.append(check, content);
+            button.addEventListener('click', () => toggleKnowledgeDocument(documentInfo));
+            elements.commandMenu.appendChild(button);
+        });
+    }
+
+    const footer = document.createElement('div');
+    footer.className = 'knowledge-picker-footer';
+    const confirmButton = document.createElement('button');
+    confirmButton.type = 'button';
+    confirmButton.className = 'knowledge-picker-confirm';
+    confirmButton.textContent = `完成${selectedKnowledgeDocuments.length ? `（${selectedKnowledgeDocuments.length}）` : ''}`;
+    confirmButton.addEventListener('mousedown', event => event.preventDefault());
+    confirmButton.addEventListener('click', confirmKnowledgeDocumentSelection);
+    footer.appendChild(confirmButton);
+    elements.commandMenu.appendChild(footer);
+    elements.commandMenu.hidden = false;
+    elements.question.setAttribute('aria-expanded', 'true');
+}
+
+function appendKnowledgePickerMessage(message) {
+    const empty = document.createElement('div');
+    empty.className = 'knowledge-picker-empty';
+    empty.textContent = message;
+    elements.commandMenu.appendChild(empty);
+}
+
+function toggleKnowledgeDocument(documentInfo) {
+    const selectedIndex = selectedKnowledgeDocuments.findIndex(item =>
+            item.documentId === documentInfo.documentId);
+    if (selectedIndex >= 0) {
+        selectedKnowledgeDocuments.splice(selectedIndex, 1);
+    } else {
+        selectedKnowledgeDocuments.push(documentInfo);
+    }
+    renderSelectedKnowledgeDocuments();
+    renderKnowledgePicker();
+}
+
+function confirmKnowledgeDocumentSelection() {
+    if (!selectedKnowledgeDocuments.length) {
+        showToast('请至少选择一个知识库文档', true);
+        return;
+    }
+    hideCommandMenu();
+    updateQuestionCount();
+    elements.question.focus();
+}
+
+function renderSelectedKnowledgeDocuments() {
+    elements.selectedKnowledgeDocuments.replaceChildren();
+    selectedKnowledgeDocuments.forEach(documentInfo => {
+        const chip = document.createElement('span');
+        chip.className = 'knowledge-document-chip';
+        chip.title = documentInfo.title;
+        const title = document.createElement('span');
+        title.textContent = documentInfo.title;
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.textContent = '×';
+        removeButton.setAttribute('aria-label', `移除 ${documentInfo.title}`);
+        removeButton.addEventListener('click', () => {
+            selectedKnowledgeDocuments = selectedKnowledgeDocuments.filter(item =>
+                    item.documentId !== documentInfo.documentId);
+            renderSelectedKnowledgeDocuments();
+            updateAskButtonState();
+        });
+        chip.append(title, removeButton);
+        elements.selectedKnowledgeDocuments.appendChild(chip);
+    });
+    elements.selectedKnowledgeDocuments.hidden = !selectedKnowledgeDocuments.length;
+}
+
+function clearKnowledgeDocumentSelection() {
+    selectedKnowledgeDocuments = [];
+    knowledgePickerOpen = false;
+    renderSelectedKnowledgeDocuments();
+}
+
+function moveCommandSelection(offset) {
+    const commands = getCommandSuggestions(elements.question.value);
+    if (!commands.length) {
+        return;
+    }
+    selectedCommandIndex = (selectedCommandIndex + offset + commands.length) % commands.length;
+    updateCommandMenu();
+}
+
+function selectCurrentCommand() {
+    const commands = getCommandSuggestions(elements.question.value);
+    if (!commands.length) {
+        return false;
+    }
+    selectCommand(commands[selectedCommandIndex]);
+    return true;
 }
 
 function updateAskButtonState() {
@@ -221,7 +441,10 @@ function updateAskButtonState() {
     elements.stopButton.hidden = !asking;
     elements.stopButton.disabled = !activeRequest;
     elements.question.placeholder = asking
-            ? FOLLOW_UP_QUESTION_PLACEHOLDER : DEFAULT_QUESTION_PLACEHOLDER;
+            ? FOLLOW_UP_QUESTION_PLACEHOLDER
+            : selectedKnowledgeDocuments.length
+                    ? '基于所选知识库提问，可继续输入 / 查看命令'
+                    : DEFAULT_QUESTION_PLACEHOLDER;
 }
 
 function ask() {
@@ -230,14 +453,40 @@ function ask() {
         return;
     }
 
-    elements.question.value = '';
-    updateQuestionCount();
+    const commandInfo = parseChatCommand(question);
+    if (commandInfo && !commandInfo.command) {
+        showToast(`不支持命令 ${commandInfo.commandName}，输入 / 查看可用命令`, true);
+        return;
+    }
+    if (commandInfo?.command.local) {
+        elements.question.value = '';
+        updateQuestionCount();
+        appendMessage('user', commandInfo.command.name);
+        appendMessage('assistant', commandInfo.command.action === 'skills'
+                ? getSkillsMarkdown() : getCommandHelpMarkdown(), [], []);
+        elements.question.focus();
+        return;
+    }
+    if (commandInfo?.command.name === KNOWLEDGE_COMMAND && !selectedKnowledgeDocuments.length) {
+        showToast('请先选择至少一个知识库文档', true);
+        openKnowledgePicker();
+        return;
+    }
+    if (commandInfo && !commandInfo.content) {
+        showToast(`请在 ${commandInfo.command.name} 后输入问题`, true);
+        return;
+    }
+
     const questionInfo = {
         question,
         topK: Number(elements.topK.value),
         streamEnabled: elements.streamMode.checked,
+        knowledgeDocumentIds: selectedKnowledgeDocuments.map(item => item.documentId),
         row: null
     };
+    elements.question.value = '';
+    clearKnowledgeDocumentSelection();
+    updateQuestionCount();
     if (asking) {
         questionInfo.row = appendPendingQuestion(questionInfo);
         pendingQuestions.push(questionInfo);
@@ -262,7 +511,8 @@ async function sendQuestion(questionInfo) {
         const request = {
             conversationId: requestConversationId,
             question: questionInfo.question,
-            topK: questionInfo.topK
+            topK: questionInfo.topK,
+            knowledgeDocumentIds: questionInfo.knowledgeDocumentIds
         };
         if (questionInfo.streamEnabled) {
             await sendStreamQuestion(request, controller.signal, loadingMessage,
@@ -334,10 +584,41 @@ export function initChat() {
     elements.clearChatButton.addEventListener('click', clearChat);
     elements.question.addEventListener('input', updateQuestionCount);
     elements.question.addEventListener('keydown', event => {
+        if (!elements.commandMenu.hidden && event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveCommandSelection(1);
+            return;
+        }
+        if (!elements.commandMenu.hidden && event.key === 'ArrowUp') {
+            event.preventDefault();
+            moveCommandSelection(-1);
+            return;
+        }
+        if (!elements.commandMenu.hidden && event.key === 'Escape') {
+            event.preventDefault();
+            hideCommandMenu();
+            return;
+        }
+        if (!elements.commandMenu.hidden && event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            if (knowledgePickerOpen) {
+                confirmKnowledgeDocumentSelection();
+                return;
+            }
+            selectCurrentCommand();
+            return;
+        }
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
             ask();
         }
+    });
+    elements.question.addEventListener('blur', () => {
+        window.setTimeout(() => {
+            if (!elements.commandMenu.contains(document.activeElement)) {
+                hideCommandMenu();
+            }
+        }, 120);
     });
     renderWelcome();
     updateQuestionCount();

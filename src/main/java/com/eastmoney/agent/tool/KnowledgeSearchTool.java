@@ -24,11 +24,13 @@ public class KnowledgeSearchTool {
     /**
      * 使用现有 KnowledgeService 完成检索，避免重复实现向量化和存储访问逻辑
      */
-    @Tool(name = "knowledge_search", value = "搜索用户已导入的知识库。仅在问题需要依据内部资料、文档或制度时调用；返回空列表表示没有相关内容")
+    @Tool(name = AgentToolConstants.KNOWLEDGE_SEARCH, value = "搜索用户已导入的知识库。仅在问题需要依据内部资料、文档或制度时调用；返回空列表表示没有相关内容")
     public List<SearchResult> search(
             @P(name = "query", value = "用于知识库检索的清晰、完整查询语句") String query,
-            @P(name = "topK", value = "返回的知识片段数量，范围为 1 到 20") Integer topK) {
-        List<SearchResult> searchResults = knowledgeService.search(query, topK);
+            @P(name = "topK", value = "返回的知识片段数量，范围为 1 到 20") Integer topK,
+            @P(name = "documentIds", value = "限定检索的文档 ID；没有限定范围时传空数组",
+                    required = false) List<String> documentIds) {
+        List<SearchResult> searchResults = knowledgeService.search(query, topK, documentIds);
         searchResults.forEach(searchResult -> searchResult.setReferenceId(
                 searchResult.getDocumentId() + ":" + searchResult.getChunkIndex()));
         return searchResults;

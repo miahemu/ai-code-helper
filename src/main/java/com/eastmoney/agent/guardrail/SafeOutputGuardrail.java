@@ -1,12 +1,11 @@
 package com.eastmoney.agent.guardrail;
 
-import com.eastmoney.agent.config.WebSearchRequestTransformer;
+import com.eastmoney.agent.transformer.WebSearchPolicy;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.guardrail.OutputGuardrail;
 import dev.langchain4j.guardrail.OutputGuardrailRequest;
 import dev.langchain4j.guardrail.OutputGuardrailResult;
-import dev.langchain4j.invocation.InvocationContext;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -55,11 +54,10 @@ public class SafeOutputGuardrail implements OutputGuardrail {
         }
 
         String outputText = aiMessage.text();
-        InvocationContext invocationContext = request.requestParams().invocationContext();
-        UserMessage userMessage = invocationContext == null ? null : invocationContext.userMessage();
+        UserMessage userMessage = request.requestParams().invocationContext().userMessage();
+        // 当联网问题的正文缺少来源链接时，要求模型重新回答。
         if (outputText != null && !outputText.isBlank()
-                && userMessage != null && userMessage.hasSingleText()
-                && WebSearchRequestTransformer.requiresWebSearch(userMessage.singleText())
+                && WebSearchPolicy.requiresWebSearch(userMessage.singleText())
                 && !WEB_SOURCE_PATTERN.matcher(outputText).find()) {
             return reprompt("联网回答缺少正文来源链接",
                     "请根据联网搜索结果重新回答。每条事实或列表项末尾都要紧跟对应的标准 Markdown 来源链接"

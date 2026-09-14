@@ -25,6 +25,8 @@ public interface KnowledgeService {
 
     List<SearchResult> search(String question, Integer topK);
 
+    List<SearchResult> search(String question, Integer topK, List<String> documentIds);
+
     List<KnowledgeDocumentRespVO> listDocuments();
 
     KnowledgeDocumentDetailRespVO getDocument(String documentId);
