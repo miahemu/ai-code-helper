@@ -6,7 +6,7 @@
     <meta name="description" content="Diving 智能助手，支持通用问答、知识库检索与智能工具">
     <title>Diving 智能助手</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260911-3">
-    <link rel="stylesheet" href="/css/index.css?v=20260911-10">
+    <link rel="stylesheet" href="/css/index.css?v=20260914-11">
 </head>
 <body>
 <div class="app-shell">
@@ -34,6 +34,12 @@
                     <div class="panel-subtitle">可直接提问，需要时会自动检索已导入的资料</div>
                 </div>
                 <div class="chat-tools">
+                    <label class="stream-mode-field" for="streamMode"
+                           title="关闭后将等待完整回答生成完成，再一次性展示结果">
+                        <input id="streamMode" type="checkbox" checked>
+                        <span class="stream-mode-switch" aria-hidden="true"></span>
+                        <span>流式输出</span>
+                    </label>
                     <label class="top-k-field" for="topK">
                         <span>最多参考</span>
                         <select id="topK" aria-label="每次回答参考的知识库片段数量">
@@ -182,6 +188,6 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="/js/app.js?v=20260914-2"></script>
+<script type="module" src="/js/app.js?v=20260914-3"></script>
 </body>
 </html>

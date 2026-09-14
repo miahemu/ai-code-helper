@@ -12,6 +12,15 @@ export function streamChat(data, signal, onMessage) {
     }, onMessage);
 }
 
+export function chat(data, signal) {
+    return request(`${CHAT_BASE_URL}/ask`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data),
+        signal
+    });
+}
+
 export function importTextDocument(title, content) {
     return request(`${KNOWLEDGE_BASE_URL}/documents/text`, {
         method: 'POST',

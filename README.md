@@ -1,140 +1,183 @@
 # AI Agent 与知识库 Demo
 
-这是一个基于 LangChain4j 的小型 AI Agent Demo，支持通用问答、会话记忆，以及按需调用用户导入的知识库。
+这是一个基于 Spring Boot 和 LangChain4j 的 AI Agent Demo，支持同步/流式问答、会话记忆、知识库检索、面试题搜索和 MCP 联网搜索。
+
+前后端保存在同一个 Maven 项目中。构建时会将 `frontend` 目录复制到应用的 `static` 目录，启动 Spring Boot 后即可直接访问页面。
+
+## 技术栈
+
+- JDK 17、Spring Boot 3.5.3
+- LangChain4j 1.19.0
+- LangChain4j Reactor / MCP 1.19.0-beta29
+- OpenAI Chat Completions 兼容模型
+- Server-Sent Events（SSE）流式输出
+- 内存向量库或 Elasticsearch 8.x
+- 原生 HTML、CSS、JavaScript
+
+## 已实现
+
+- 同步问答接口和基于 `Flux` 的 SSE 流式问答接口，页面可切换输出模式
+- 基于 `ChatMemoryProvider` 的多会话记忆
+- TXT、Markdown、PDF、DOC、DOCX 文件解析，以及文本直接导入
+- LangChain4j 递归文档切分，默认切片长度 500、重叠长度 80
+- LangChain4j AI Services Tool Calling Agent
+- `knowledge_search` 知识库检索工具
+- `interviewQuestionSearch` 面试题搜索工具
+- 基于智谱 Streamable HTTP MCP 的联网搜索工具
+- 输入、输出 Guardrails 安全检查
+- 模型请求、响应、Token、耗时、工具调用和异常日志监听
+- Markdown 安全渲染、知识引用和相关网页展示
 
 ## 项目结构
 
 ```text
-ai-code-helper
-├─ frontend                    前端静态资源
+ai-rag-demo
+├─ frontend
 │  ├─ index.html               页面结构
 │  ├─ css/index.css            页面样式
 │  └─ js
-│     ├─ api.js                后端接口请求封装
+│     ├─ api.js                HTTP 与 SSE 底层请求封装
+│     ├─ route.js              后端接口调用
+│     ├─ elements.js           DOM 元素引用
+│     ├─ ui.js                 通用页面交互
+│     ├─ chat.js               对话与流式响应处理
+│     ├─ knowledge.js          知识库管理
 │     ├─ markdown.js           Markdown 安全渲染
-│     └─ app.js                页面交互和业务逻辑
-├─ src/main/java               Spring Boot 后端代码
-├─ src/main/resources          后端配置文件
+│     └─ app.js                页面初始化入口
+├─ src/main/java/com/eastmoney/agent
+│  ├─ config                   模型、MCP 和请求转换配置
+│  ├─ controller               对答与知识库接口
+│  ├─ guardrail                输入、输出安全检查
+│  ├─ listener                 模型调用日志监听
+│  ├─ reference                知识引用和网页链接处理
+│  ├─ service                  Agent 与业务服务
+│  ├─ tool                     Agent 本地工具
+│  └─ vo                       请求和响应对象
+├─ src/main/resources
+│  ├─ prompts                  Agent 系统提示词
+│  └─ application.yml          应用配置
 └─ pom.xml                     Maven 配置
 ```
 
-Maven 构建时会将 `frontend` 自动复制到应用的 `static` 目录，因此前后端保存在同一个项目中，运行和打包仍只需要 Spring Boot。
-
-## 已实现
-
-- 一个可直接访问的生活化对答网页
-- 粘贴文章导入，以及 `txt` / `md` / `pdf` / `doc` / `docx` 文件解析上传
-- 文档列表管理、删除文档及其全部切片、使用原文重新索引
-- LangChain4j 递归文档切分（默认 500 字，重叠 80 字）
-- 本地哈希向量，未配置 Embedding 服务也能演示
-- LangChain4j 内存向量库，以及 Elasticsearch `dense_vector + script_score` 检索
-- LangChain4j OpenAI 兼容的 Embedding、Chat Model
-- 基于 LangChain4j AI Services 的 Tool Calling Agent，当前提供知识库检索工具
-- 可选接入智谱 Web Search MCP，为 Agent 提供联网搜索能力
-- 基于 LangChain4j Guardrails 的输入和输出安全检查
-- 基于 `ChatMemoryProvider` 的多会话记忆，并通过 `MessageWindowChatMemory` 限制历史消息数量
-- 模型、Embedding、Elasticsearch 均通过 `application.yml` 配置
-
 ## 核心流程
+
+前端默认开启流式输出，也可以通过页面开关切换为同步调用。流式模式下，后端把模型分片转换为 SSE 事件，并在生成结束后返回知识库引用和相关网页。
 
 ```mermaid
 sequenceDiagram
     participant U as 用户
-    participant F as 前端页面
-    participant K as KnowledgeController
-    participant KS as KnowledgeService
-    participant E as EmbeddingService
-    participant V as 向量库
+    participant F as 前端
     participant C as ChatController
-    participant CS as ChatService
+    participant S as ChatServiceImpl
     participant A as AgentAssistant
-    participant T as KnowledgeSearchTool
-    participant LLM as 大模型
+    participant T as Agent 工具
+    participant L as LLM
 
-    U->>F: 导入文章或上传文档
-    F->>K: POST /api/knowledge/documents/text 或 /documents/file
-    K->>KS: 解析并保存文档
-    KS->>KS: 文本切片
-    KS->>E: 生成切片向量
-    E-->>KS: 返回向量
-    KS->>V: 保存知识切片和向量
-    V-->>KS: 保存完成
-    KS-->>F: 返回导入结果
-
-    U->>F: 输入问题并设置召回数 topK
-    F->>C: POST /api/chat/ask
-    C->>CS: chat(request)
-    CS->>A: chat(question, topK)
-    A->>LLM: 发送问题和工具定义
-    alt 问题需要用户知识库
-        LLM-->>A: 调用 knowledge_search
-        A->>T: search(query, topK)
-        T->>KS: search(query, topK)
-        KS->>E: 生成问题向量
-        E-->>KS: 返回问题向量
-        KS->>V: 相似度检索 topK 个片段
-        V-->>KS: 返回参考片段
-        KS-->>T: 返回检索结果
+    U->>F: 输入问题
+    F->>C: POST /api/chat/askStream
+    C->>S: chatStream(request)
+    S->>A: chatStream(conversationId, question, topK)
+    A->>L: 问题、记忆和工具定义
+    opt 需要知识库、面试题或联网信息
+        L-->>A: 发起工具调用
+        A->>T: 执行对应工具
         T-->>A: 返回工具结果
-        A->>LLM: 根据知识片段继续生成回答
+        A->>L: 根据工具结果继续生成
     end
-    LLM-->>A: 返回最终回答
-    A-->>CS: 返回回答和工具执行结果
-    CS-->>C: 返回回答和引用
-    C-->>F: 返回回答和引用
-    F-->>U: 展示答案
+    L-->>S: 持续返回回答分片
+    S-->>F: content 事件
+    S-->>F: complete 事件（答案、引用、网址）
+    F-->>U: 增量展示最终回答
 ```
 
-## 后端代码阅读顺序
-
-聊天入口统一收敛在 `ChatServiceImpl`，Agent 根据问题自主决定是否调用知识库工具：
+后端聊天代码建议按下面的顺序阅读：
 
 ```text
-ChatController
-└─ ChatServiceImpl
-   └─ AgentAssistant.chat → KnowledgeSearchTool → KnowledgeService.search
+流式：ChatController.askStream
+   └─ ChatServiceImpl.chatStream
+      └─ AgentAssistant.chatStream → TokenStream → Agent 工具
+
+同步：ChatController.ask
+   └─ ChatServiceImpl.chat
+      └─ AgentAssistant.chat → Result<String> → Agent 工具
 ```
 
-`AgentAssistant` 只声明 LangChain4j 调用方式，不承载额外业务逻辑；模型、会话记忆和 Tool 的组装统一放在 `LangChain4jConfig`。
+同步模型、流式模型、会话记忆、本地工具和 MCP 工具统一在 `LangChain4jConfig` 中组装。
 
-## 运行环境
+## 运行前配置
 
-- JDK 17
-- Maven 3.6+
-- 可选：Elasticsearch 8.x
+聊天模型和智谱 MCP 是当前启动所需配置。请修改 `src/main/resources/application.yml`，不要将真实密钥提交到代码仓库。
 
-## 第一次运行（无外部依赖）
-
-```bash
-mvn spring-boot:run
-```
-
-打开：<http://localhost:3859>
-
-默认配置：
-
-- 模型：调用 `ai.chat` 配置的远程模型
-- 向量：`local-hash`
-- 向量库：`memory`
-- 检索：相似度低于 `ai.retrieval.min-score` 的切片不会参与回答或作为引用返回
-
-可直接提问通用问题；粘贴文章或上传文档后，Agent 也可以在需要时检索知识库。当前文档元数据和原文保存在内存中，服务重启后文档管理列表会清空；使用内存向量库时，知识切片也会同时清空。
-
-## 接入真实模型
-
-编辑 `src/main/resources/application.yml`：
+### 聊天模型
 
 ```yaml
 ai:
   chat:
-    url: "https://your-host/v1/chat/completions"
+    base_url: "https://your-host/v1/chat/completions"
     api-key: "your-api-key"
     model: "your-model"
+  chat-memory:
+    max-messages: 20
 ```
 
-模型调用由 LangChain4j `OpenAiChatModel` 负责，`url` 可以继续填写完整的 OpenAI 兼容 `chat/completions` 地址。
+`base_url` 支持填写 OpenAI 兼容服务的基础地址，也支持填写包含 `/chat/completions` 的完整地址。项目会同时创建 `OpenAiChatModel` 和 `OpenAiStreamingChatModel`：同步接口使用前者，SSE 接口使用后者。
 
-## 接入真实 Embedding
+
+### Agent
+
+```yaml
+agent:
+  max-steps: 5
+  trace-enabled: true
+```
+
+- `max-steps`：单次任务允许的最大工具调用轮数。
+- `trace-enabled`：是否记录模型请求、响应、Token、耗时和工具调用摘要。
+
+
+### 智谱联网搜索 MCP
+
+```yaml
+bigmodel:
+  api-key: "your-coding-plan-api-key"
+  mcp:
+    web-search-url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp"
+    log-enabled: false
+```
+
+项目通过 Streamable HTTP 协议连接智谱 Web Search Prime MCP，并将服务端提供的工具注册到 Agent。当前 `McpConfig` 会在启动时创建客户端，因此必须配置有效的 GLM Coding Plan API Key，并保证 MCP 服务可访问，否则应用会启动失败。
+
+涉及最新动态、实时信息或外部事实核验的问题，Agent 会优先使用联网搜索工具。`log-enabled` 仅建议在调试 MCP 请求时开启。
+
+#### 智谱Token plan：
+https://bigmodel.cn/coding-plan/personal/overview
+#### 智谱余额总览：
+https://bigmodel.cn/finance-center/finance/overview
+#### 智谱本地 MCP 服务:
+https://mcp.so/servers/cc-zhipu-web-search
+#### 智谱远程 MCP 服务:
+https://docs.bigmodel.cn/cn/coding-plan/mcp/search-mcp-server
+
+### Embedding 与向量存储
+
+不配置远程 Embedding 地址时，项目使用本地 256 维哈希向量：
+
+```yaml
+ai:
+  embedding:
+    url: ""
+    api-key: ""
+    model: ""
+    dimensions: 256
+  chunk:
+    size: 500
+    overlap: 80
+  retrieval:
+    min-score: 0.50
+    local-keyword-filter-enabled: true
+```
+
+接入 OpenAI 兼容的 Embedding 服务时填写：
 
 ```yaml
 ai:
@@ -145,23 +188,9 @@ ai:
     dimensions: 1024
 ```
 
-`dimensions` 必须与模型实际返回的向量维度一致。更换维度后，如果 Elasticsearch 中已经创建旧索引，需要新建索引名或人工删除旧测试索引后重建。
+`dimensions` 必须与模型实际返回的向量维度一致。本地哈希向量仅用于演示，不具备完整语义理解能力，因此默认还会进行关键词重合校验。
 
-`local-hash` 仅用于本地演示，不具备完整的语义理解能力。该模式默认还会进行关键词重合校验，以减少哈希碰撞导致的不相关召回；接入真实 Embedding 后只使用相似度阈值过滤。
-
-## 会话记忆
-
-前端会为每次新对话生成独立的 `conversationId`，后端通过 LangChain4j `ChatMemoryProvider` 隔离不同会话。点击“清空对话”时会生成新的会话标识。
-
-```yaml
-ai:
-  chat-memory:
-    max-messages: 20
-```
-
-`max-messages` 表示每个会话最多保留的消息数量，包含用户、助手和工具消息。当前记忆保存在服务内存中，应用重启后会清空。
-
-## 接入测试线 Elasticsearch
+默认使用内存向量库。接入 Elasticsearch 8.x 时配置：
 
 ```yaml
 elasticsearch:
@@ -172,44 +201,79 @@ elasticsearch:
   index-name: "ai_knowledge_chunk"
 ```
 
-服务会在首次导入文章时自动创建索引。当前使用兼容 Elasticsearch 8.x 的 `dense_vector` 映射和 `cosineSimilarity` 脚本评分，不绑定特定 Java ES 客户端版本。
+服务会在首次导入文档时自动创建索引。更换向量维度后，如果 Elasticsearch 中已经存在旧索引，需要更换索引名或清理旧测试索引后重建。
 
-## 示例：
+## 启动项目
+
+确认聊天模型和 MCP 配置可用后运行：
+
+```bash
+mvn spring-boot:run
+```
+
+浏览器访问：<http://localhost:3859>
+
+当前文档元数据和原文保存在应用内存中，服务重启后文档列表会清空。使用内存向量库时，知识切片也会同时清空。
+
+## 接口说明
+
+### 对答接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/chat/askStream` | SSE 流式问答，前端默认使用 |
+| POST | `/api/chat/ask` | 同步问答，保留用于普通 HTTP 调用 |
+
+两个接口使用相同的请求参数：
+
+```json
+{
+  "conversationId": "demo-session-1",
+  "question": "下雨天衣服不干怎么办？",
+  "topK": 4
+}
+```
+
+`conversationId` 用于隔离会话记忆，`topK` 默认值为 4。
+
+
+### 知识库接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/knowledge/documents/text` | 导入标题和文本内容 |
+| POST | `/api/knowledge/documents/file` | 上传 TXT、MD、PDF、DOC 或 DOCX 文件 |
+| GET | `/api/knowledge/documents` | 查询文档列表 |
+| GET | `/api/knowledge/documents/{documentId}` | 查询文档详情 |
+| POST | `/api/knowledge/documents/{documentId}/delete` | 删除文档及其切片 |
+| POST | `/api/knowledge/documents/{documentId}/reindex` | 使用原文重新生成切片和索引 |
+| GET | `/api/knowledge/chunks/search` | 直接检索知识切片 |
+| GET | `/api/knowledge/status` | 查询 Embedding 和向量库运行模式 |
+
+## 调用示例
+
+1. 导入一篇文本：
 
 ```bash
 curl -X POST http://localhost:3859/api/knowledge/documents/text \
   -H "Content-Type: application/json" \
   -d '{"title":"雨天晾衣","content":"下雨天可以使用风扇或空调除湿模式加快衣服干燥。"}'
+```
 
+2. 使用 SSE 流式提问：
+
+```bash
+curl -N -X POST http://localhost:3859/api/chat/askStream \
+  -H "Content-Type: application/json" \
+  -d '{"conversationId":"demo-session-1","question":"下雨天衣服不干怎么办？","topK":4}'
+```
+
+3. 同步接口调用：
+
+```bash
 curl -X POST http://localhost:3859/api/chat/ask \
   -H "Content-Type: application/json" \
   -d '{"conversationId":"demo-session-1","question":"下雨天衣服不干怎么办？","topK":4}'
 ```
 
 重新索引时会先完成新切片的向量生成，再删除并替换旧切片。启用 Elasticsearch 后，删除操作通过 `_delete_by_query` 按 `documentId` 清理索引数据。
-
-## Agent 配置
-
-聊天统一使用 Agent 流程，模型接口需要支持 OpenAI 兼容的 `tools`、`tool_choice` 和 `tool_calls` 协议：
-
-```yaml
-agent:
-  max-steps: 5
-  trace-enabled: true
-```
-
-LangChain4j AI Services 会负责工具定义、参数解析和多轮调用。Agent 会自主判断是否调用 `knowledge_search`：普通问题可以直接回答，需要内部资料的问题则会检索知识库，并根据工具结果继续生成最终回答。
-
-## 接入智谱联网搜索 MCP
-
-项目使用当前 LangChain4j MCP 版本支持的 Streamable HTTP 协议，对接智谱 Web Search Prime MCP。需要使用 GLM Coding Plan 专属 API Key：
-
-```yaml
-bigmodel:
-  api-key: "your-coding-plan-api-key"
-  mcp:
-    web-search-url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp"
-    log-enabled: false
-```
-
-`McpConfig` 会在应用启动时创建 MCP 客户端和 `McpToolProvider`，并将智谱 MCP 服务提供的工具标记为联网搜索工具后注册到现有 Agent。业务逻辑按工具标记识别联网搜索能力，不依赖服务端具体工具名。涉及最新动态、实时信息或外部事实核验的问题时，Agent 可自主调用联网搜索。MCP 是必需依赖，未配置有效 API Key 或服务无法连接时，应用会启动失败。

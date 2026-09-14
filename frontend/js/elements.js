@@ -33,6 +33,7 @@ export const elements = {
     selectedFile: document.getElementById('selectedFile'),
     status: document.getElementById('status'),
     stopButton: document.getElementById('stopBtn'),
+    streamMode: document.getElementById('streamMode'),
     title: document.getElementById('title'),
     toast: document.getElementById('toast'),
     topK: document.getElementById('topK'),

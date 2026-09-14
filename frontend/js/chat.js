@@ -1,6 +1,6 @@
-import {elements} from './elements.js?v=20260914-2';
+import {elements} from './elements.js?v=20260914-3';
 import {renderMarkdown} from './markdown.js?v=20260911-3';
-import {streamChat} from './route.js?v=20260914-2';
+import {chat, streamChat} from './route.js?v=20260914-3';
 import {createLogoImage, openContentViewer, showToast} from './ui.js?v=20260914-2';
 
 const DEFAULT_QUESTION_PLACEHOLDER = '向 Diving 提问，Enter 发送，Shift + Enter 换行';
@@ -235,6 +235,7 @@ function ask() {
     const questionInfo = {
         question,
         topK: Number(elements.topK.value),
+        streamEnabled: elements.streamMode.checked,
         row: null
     };
     if (asking) {
@@ -258,25 +259,20 @@ async function sendQuestion(questionInfo) {
     activeRequest = {controller, conversationVersion: requestConversationVersion};
     updateAskButtonState();
     try {
-        let answer = '';
-        let result = null;
-        await streamChat({
+        const request = {
             conversationId: requestConversationId,
             question: questionInfo.question,
             topK: questionInfo.topK
-        }, controller.signal, event => {
-            if (event.type === 'content') {
-                answer += event.content || '';
-                updateStreamingMessage(loadingMessage, answer);
-            } else if (event.type === 'complete') {
-                result = event.result;
-            } else if (event.type === 'error') {
-                throw new Error(event.content || '生成回答失败');
+        };
+        if (questionInfo.streamEnabled) {
+            await sendStreamQuestion(request, controller.signal, loadingMessage,
+                    requestConversationVersion);
+        } else {
+            const result = await chat(request, controller.signal);
+            if (requestConversationVersion === conversationVersion) {
+                replaceLoadingMessage(loadingMessage, result.answer,
+                        result.references || [], result.relatedUrls || []);
             }
-        });
-        if (requestConversationVersion === conversationVersion) {
-            replaceLoadingMessage(loadingMessage, result?.answer || answer,
-                    result?.references || [], result?.relatedUrls || []);
         }
     } catch (error) {
         if (requestConversationVersion !== conversationVersion) {
@@ -302,6 +298,25 @@ async function sendQuestion(questionInfo) {
         } else {
             elements.question.focus();
         }
+    }
+}
+
+async function sendStreamQuestion(request, signal, loadingMessage, requestConversationVersion) {
+    let answer = '';
+    let result = null;
+    await streamChat(request, signal, event => {
+        if (event.type === 'content') {
+            answer += event.content || '';
+            updateStreamingMessage(loadingMessage, answer);
+        } else if (event.type === 'complete') {
+            result = event.result;
+        } else if (event.type === 'error') {
+            throw new Error(event.content || '生成回答失败');
+        }
+    });
+    if (requestConversationVersion === conversationVersion) {
+        replaceLoadingMessage(loadingMessage, result?.answer || answer,
+                result?.references || [], result?.relatedUrls || []);
     }
 }
 

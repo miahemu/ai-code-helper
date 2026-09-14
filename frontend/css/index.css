@@ -182,7 +182,63 @@ button:disabled {
 .chat-tools {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 9px;
+}
+
+.stream-mode-field {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.stream-mode-field input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+.stream-mode-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 18px;
+    border-radius: 999px;
+    background: #c6cedb;
+    transition: background 0.18s;
+}
+
+.stream-mode-switch::after {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 4px rgba(23, 32, 51, 0.22);
+    content: '';
+    transition: transform 0.18s;
+}
+
+.stream-mode-field input:checked + .stream-mode-switch {
+    background: var(--primary);
+}
+
+.stream-mode-field input:checked + .stream-mode-switch::after {
+    transform: translateX(14px);
+}
+
+.stream-mode-field input:focus-visible + .stream-mode-switch {
+    outline: 2px solid rgba(49, 87, 213, 0.3);
+    outline-offset: 2px;
 }
 
 .top-k-field {
@@ -1499,7 +1555,7 @@ body.delete-dialog-open {
 
     .chat-tools {
         width: 100%;
-        justify-content: space-between;
+        justify-content: flex-start;
     }
 
     .chat-list {
