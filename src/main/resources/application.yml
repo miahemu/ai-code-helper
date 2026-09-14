@@ -36,6 +36,9 @@ ai:
     min-score: 0.50
     # 本地哈希向量缺少语义能力，额外要求问题与切片存在真实关键词重合
     local-keyword-filter-enabled: true
+  storage:
+    # 本地知识库和会话数据共用的 SQLite 文件，路径相对于项目启动目录
+    database-path: "data/knowledge.db"
 
 agent:
   # LangChain4j 单次任务允许的最大工具调用轮数，避免异常情况下无限循环

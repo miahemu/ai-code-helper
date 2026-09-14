@@ -11,7 +11,7 @@
 - LangChain4j Reactor / MCP 1.19.0-beta29
 - OpenAI Chat Completions 兼容模型
 - Server-Sent Events（SSE）流式输出
-- 内存向量库或 Elasticsearch 8.x
+- SQLite 本地向量存储或 Elasticsearch 8.x
 - 原生 HTML、CSS、JavaScript
 
 ## 已实现
@@ -205,7 +205,7 @@ ai:
 
 `dimensions` 必须与模型实际返回的向量维度一致。本地哈希向量仅用于演示，不具备完整语义理解能力，因此默认还会进行关键词重合校验。
 
-默认使用内存向量库。接入 Elasticsearch 8.x 时配置：
+默认使用本地 SQLite 存储：文档、切片、JSON 向量以及会话记忆保存在 `data/knowledge.db`；向量检索时由 Java 计算余弦相似度。接入 Elasticsearch 8.x 时配置：
 
 ```yaml
 elasticsearch:
@@ -228,7 +228,7 @@ mvn spring-boot:run
 
 浏览器访问：<http://localhost:3859>
 
-当前文档元数据和原文保存在应用内存中，服务重启后文档列表会清空。使用内存向量库时，知识切片也会同时清空。
+默认情况下，文档元数据、原文、切片、JSON 向量和聊天消息都保存在 `data/knowledge.db`，服务重启后仍可继续查询或沿用原会话。`chat-memory.max-messages` 控制每个会话持久化的消息窗口大小。
 
 ## 斜杠命令
 

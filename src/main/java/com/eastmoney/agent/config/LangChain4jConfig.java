@@ -1,5 +1,6 @@
 package com.eastmoney.agent.config;
 
+import com.eastmoney.agent.repository.SqliteChatMemoryStore;
 import com.eastmoney.agent.service.AgentAssistant;
 import com.eastmoney.agent.tool.InterviewQuestionTool;
 import com.eastmoney.agent.tool.KnowledgeSearchTool;
@@ -87,12 +88,17 @@ public class LangChain4jConfig {
                                          KnowledgeSearchTool knowledgeSearchTool,
                                          InterviewQuestionTool interviewQuestionTool,
                                          McpToolProvider mcpToolProvider,
-                                         AgentChatRequestTransformer agentChatRequestTransformer) {
+                                         AgentChatRequestTransformer agentChatRequestTransformer,
+                                         SqliteChatMemoryStore chatMemoryStore) {
         return AiServices.builder(AgentAssistant.class)
                 .chatModel(chatModel)
                 .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(memoryId ->
-                        MessageWindowChatMemory.withMaxMessages(maxMemoryMessages)) // 每个会话独立存储
+                        MessageWindowChatMemory.builder()
+                                .id(memoryId)
+                                .maxMessages(maxMemoryMessages)
+                                .chatMemoryStore(chatMemoryStore)
+                                .build()) // 每个会话独立存储，并持久化到 SQLite
                 .tools(knowledgeSearchTool, interviewQuestionTool) //工具调用
                 .toolProvider(mcpToolProvider) // MCP 工具调用
                 .chatRequestTransformer(agentChatRequestTransformer::transform) // 按命令或问题选择工具

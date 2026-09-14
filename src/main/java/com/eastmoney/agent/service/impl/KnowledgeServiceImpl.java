@@ -5,6 +5,7 @@ import com.eastmoney.agent.domain.KnowledgeChunk;
 import com.eastmoney.agent.domain.KnowledgeDocument;
 import com.eastmoney.agent.domain.SearchResult;
 import com.eastmoney.agent.enums.DocumentTypeEnum;
+import com.eastmoney.agent.repository.KnowledgeRepository;
 import com.eastmoney.agent.service.DocumentParserService;
 import com.eastmoney.agent.service.EmbeddingService;
 import com.eastmoney.agent.service.ElasticsearchService;
@@ -16,14 +17,9 @@ import com.eastmoney.agent.vo.response.KnowledgeImportRespVO;
 import com.eastmoney.agent.vo.response.SystemStatusRespVO;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.DocumentSplitter;
-import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.store.embedding.EmbeddingMatch;
-import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
-import dev.langchain4j.store.embedding.filter.MetadataFilterBuilder;
-import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -39,8 +35,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -63,12 +57,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private static final Set<String> QUERY_STOP_WORDS = new HashSet<>(Arrays.asList(
             "什么", "怎么", "如何", "哪些", "是否", "可以", "需要", "应该", "一个",
             "这个", "那个", "有关", "相关", "问题", "一下", "介绍", "说明", "告诉", "帮我"));
-
-    // 未启用 Elasticsearch 时使用 LangChain4j 内存向量库
-    private final InMemoryEmbeddingStore<TextSegment> localStore = new InMemoryEmbeddingStore<>();
-
-    // 文档元数据和重新索引所需原文，服务重启后清空
-    private final ConcurrentMap<String, KnowledgeDocument> documentStore = new ConcurrentHashMap<>();
 
     // 文档切片大小
     @Value("${ai.chunk.size}")
@@ -100,6 +88,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     @Autowired
     private DocumentParserService documentParserService;
+
+    @Autowired
+    private KnowledgeRepository knowledgeRepository;
 
     /**
      * 将文章切分并生成向量，然后写入当前启用的知识库
@@ -145,7 +136,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     @Override
     public List<KnowledgeDocumentRespVO> listDocuments() {
-        return documentStore.values().stream()
+        return knowledgeRepository.listDocuments().stream()
                 .sorted(Comparator.comparing(KnowledgeDocument::getUpdateTime).reversed())
                 .map(document -> {
                     KnowledgeDocumentRespVO result = new KnowledgeDocumentRespVO();
@@ -169,7 +160,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     @Override
     public KnowledgeDocumentDetailRespVO getDocument(String documentId) {
-        KnowledgeDocument document = documentStore.get(documentId);
+        KnowledgeDocument document = knowledgeRepository.findDocument(documentId);
         if (document == null) {
             throw new IllegalArgumentException("文档不存在或已删除");
         }
@@ -193,12 +184,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     @Override
     public void deleteDocument(String documentId) {
-        KnowledgeDocument document = documentStore.get(documentId);
+        KnowledgeDocument document = knowledgeRepository.findDocument(documentId);
         if (document == null) {
             throw new IllegalArgumentException("文档不存在或已删除");
         }
         deleteChunks(documentId);
-        documentStore.remove(documentId);
+        knowledgeRepository.deleteDocument(documentId);
     }
 
     /**
@@ -209,16 +200,18 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     @Override
     public KnowledgeImportRespVO reindexDocument(String documentId) {
-        KnowledgeDocument document = documentStore.get(documentId);
+        KnowledgeDocument document = knowledgeRepository.findDocument(documentId);
         if (document == null) {
             throw new IllegalArgumentException("文档不存在，无法重新索引");
         }
 
         List<KnowledgeChunk> chunks = this.buildChunks(document);
-        deleteChunks(documentId);
-        saveChunks(chunks);
         document.setChunkCount(chunks.size());
         document.setUpdateTime(LocalDateTime.now());
+        if (Boolean.TRUE.equals(elasticsearchEnabled)) {
+            deleteChunks(documentId);
+        }
+        saveIndex(document, chunks);
 
         KnowledgeImportRespVO result = new KnowledgeImportRespVO();
         result.setDocumentId(documentId);
@@ -260,34 +253,28 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
             searchResults = elasticsearchService.search(queryEmbedding, actualTopK, actualDocumentIds);
         } else {
-            EmbeddingSearchRequest.EmbeddingSearchRequestBuilder searchRequestBuilder = EmbeddingSearchRequest.builder()
-                    .queryEmbedding(queryEmbedding)
-                    .maxResults(actualTopK)
-                    .minScore(retrievalMinScore);
-            if (!actualDocumentIds.isEmpty()) {
-                searchRequestBuilder.filter(MetadataFilterBuilder.metadataKey("documentId")
-                        .isIn(actualDocumentIds));
-            }
-            searchResults = localStore.search(searchRequestBuilder.build()).matches().stream()
-                    .map(this::toSearchResult)
+            searchResults = knowledgeRepository.listChunks(actualDocumentIds).stream()
+                    .map(chunk -> toSearchResult(chunk, cosineSimilarity(queryEmbedding, chunk.getEmbedding())))
+                    // 本地哈希向量对长文本的余弦分数偏低，先按真实关键词保留候选，再进行排序和截取
+                    .filter(result -> isRelevantResult(question, result))
+                    .sorted(Comparator.comparing(SearchResult::getScore).reversed())
+                    .limit(actualTopK)
                     .collect(Collectors.toList());
         }
 
-        return searchResults.stream()
-                .filter(result -> isRelevantResult(question, result))
-                .collect(Collectors.toList());
+        return searchResults;
     }
 
     /**
-     * 过滤低相关度结果；本地哈希模式额外排除仅由哈希碰撞产生的假相似结果
+     * 过滤低相关度结果；本地哈希模式优先使用关键词命中，避免长文本余弦分数误杀真实资料。
      */
     private boolean isRelevantResult(String question, SearchResult result) {
-        if (result.getScore() == null || result.getScore() < retrievalMinScore) {
+        if (result == null || result.getScore() == null) {
             return false;
         }
         if (!LOCAL_HASH_MODE.equals(embeddingService.getMode())
                 || !Boolean.TRUE.equals(localKeywordFilterEnabled)) {
-            return true;
+            return result.getScore() >= retrievalMinScore;
         }
         return hasKeywordOverlap(question, result.getTitle() + " " + result.getContent());
     }
@@ -344,11 +331,11 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     /**
      * 获取当前知识库存储模式
      *
-     * @return elasticsearch 或 memory
+     * @return elasticsearch 或 sqlite
      */
     @Override
     public String getVectorStoreMode() {
-        return Boolean.TRUE.equals(elasticsearchEnabled) ? "elasticsearch" : "memory";
+        return Boolean.TRUE.equals(elasticsearchEnabled) ? "elasticsearch" : "sqlite";
     }
 
     /**
@@ -356,10 +343,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      */
     private KnowledgeImportRespVO indexDocument(KnowledgeDocument document) {
         List<KnowledgeChunk> chunks = buildChunks(document);
-        saveChunks(chunks);
         document.setChunkCount(chunks.size());
         document.setUpdateTime(LocalDateTime.now());
-        documentStore.put(document.getId(), document);
+        saveIndex(document, chunks);
 
         KnowledgeImportRespVO result = new KnowledgeImportRespVO();
         result.setDocumentId(document.getId());
@@ -391,21 +377,15 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     /**
-     * 将切片写入当前启用的向量存储
+     * 将文档和切片写入当前启用的向量存储
      */
-    private void saveChunks(List<KnowledgeChunk> chunks) {
+    private void saveIndex(KnowledgeDocument document, List<KnowledgeChunk> chunks) {
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
             elasticsearchService.saveAll(chunks);
+            knowledgeRepository.saveDocument(document);
             return;
         }
-        for (KnowledgeChunk chunk : chunks) {
-            Metadata metadata = new Metadata()
-                    .put("documentId", chunk.getDocumentId())
-                    .put("title", chunk.getTitle())
-                    .put("chunkIndex", chunk.getChunkIndex());
-            TextSegment segment = TextSegment.from(chunk.getContent(), metadata);
-            localStore.add(chunk.getId(), chunk.getEmbedding(), segment);
-        }
+        knowledgeRepository.saveDocumentAndChunks(document, chunks);
     }
 
     /**
@@ -414,19 +394,43 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private void deleteChunks(String documentId) {
         if (Boolean.TRUE.equals(elasticsearchEnabled)) {
             elasticsearchService.deleteByDocumentId(documentId);
-            return;
         }
-        localStore.removeAll(MetadataFilterBuilder.metadataKey("documentId").isEqualTo(documentId));
+        knowledgeRepository.deleteChunks(documentId);
     }
 
-    private SearchResult toSearchResult(EmbeddingMatch<TextSegment> match) {
-        TextSegment segment = match.embedded();
+    private SearchResult toSearchResult(KnowledgeChunk chunk, double score) {
         SearchResult result = new SearchResult();
-        result.setDocumentId(segment.metadata().getString("documentId"));
-        result.setTitle(segment.metadata().getString("title"));
-        result.setChunkIndex(segment.metadata().getInteger("chunkIndex"));
-        result.setContent(segment.text());
-        result.setScore(match.score());
+        result.setDocumentId(chunk.getDocumentId());
+        result.setTitle(chunk.getTitle());
+        result.setChunkIndex(chunk.getChunkIndex());
+        result.setContent(chunk.getContent());
+        result.setScore(score);
         return result;
+    }
+
+    /**
+     * SQLite 只保存向量 JSON，本地检索时直接计算余弦相似度，适合当前 Demo 的数据规模。
+     */
+    private double cosineSimilarity(Embedding left, Embedding right) {
+        List<Float> leftVector = left.vectorAsList();
+        List<Float> rightVector = right.vectorAsList();
+        if (leftVector.size() != rightVector.size()) {
+            return 0D;
+        }
+
+        double dotProduct = 0D;
+        double leftNorm = 0D;
+        double rightNorm = 0D;
+        for (int index = 0; index < leftVector.size(); index++) {
+            double leftValue = leftVector.get(index);
+            double rightValue = rightVector.get(index);
+            dotProduct += leftValue * rightValue;
+            leftNorm += leftValue * leftValue;
+            rightNorm += rightValue * rightValue;
+        }
+        if (leftNorm == 0D || rightNorm == 0D) {
+            return 0D;
+        }
+        return dotProduct / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
     }
 }

@@ -16,7 +16,7 @@ public class ChatRespVO {
     // 大模型生成的回答
     private String answer;
 
-    // 向量库模式：elasticsearch 或 memory
+    // 向量库模式：elasticsearch 或 sqlite
     private String vectorStoreMode;
 
     // 本次回答引用的知识库片段

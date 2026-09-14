@@ -20,6 +20,6 @@ public class KnowledgeImportRespVO {
     // 向量生成模式：remote 或 local-hash
     private String embeddingMode;
 
-    // 向量库模式：elasticsearch 或 memory
+    // 向量库模式：elasticsearch 或 sqlite
     private String vectorStoreMode;
 }
