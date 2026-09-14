@@ -2,6 +2,8 @@ package com.eastmoney.agent.service;
 
 import com.eastmoney.agent.vo.request.ChatReqVO;
 import com.eastmoney.agent.vo.response.ChatRespVO;
+import com.eastmoney.agent.vo.response.ChatStreamRespVO;
+import reactor.core.publisher.Flux;
 
 /**
  * @Author: suyue
@@ -12,4 +14,6 @@ import com.eastmoney.agent.vo.response.ChatRespVO;
 public interface ChatService {
 
     ChatRespVO chat(ChatReqVO request);
+
+    Flux<ChatStreamRespVO> chatStream(ChatReqVO request);
 }

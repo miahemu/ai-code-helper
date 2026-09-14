@@ -1,4 +1,4 @@
-import {request} from './api.js';
+import {request, streamRequest} from './api.js?v=20260914-1';
 import {renderDocumentContent, renderMarkdown} from './markdown.js?v=20260911-3';
 
 const elements = {
@@ -268,6 +268,14 @@ function replaceLoadingMessage(loadingMessage, text, references, relatedUrls) {
     elements.chatList.scrollTop = elements.chatList.scrollHeight;
 }
 
+function updateStreamingMessage(loadingMessage, text) {
+    const message = loadingMessage.querySelector('.message');
+    message.classList.remove('loading-message');
+    message.removeAttribute('aria-label');
+    message.textContent = text;
+    elements.chatList.scrollTop = elements.chatList.scrollHeight;
+}
+
 function appendPendingQuestion(questionInfo) {
     const row = appendMessage('user', questionInfo.question);
     row.classList.add('pending-row');
@@ -362,7 +370,9 @@ async function sendQuestion(questionInfo) {
     activeRequest = {controller, conversationVersion: requestConversationVersion};
     updateAskButtonState();
     try {
-        const data = await request('/api/chat/ask', {
+        let answer = '';
+        let result = null;
+        await streamRequest('/api/chat/askStream', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -371,9 +381,19 @@ async function sendQuestion(questionInfo) {
                 topK: questionInfo.topK
             }),
             signal: controller.signal
+        }, event => {
+            if (event.type === 'content') {
+                answer += event.content || '';
+                updateStreamingMessage(loadingMessage, answer);
+            } else if (event.type === 'complete') {
+                result = event.result;
+            } else if (event.type === 'error') {
+                throw new Error(event.content || '生成回答失败');
+            }
         });
         if (requestConversationVersion === conversationVersion) {
-            replaceLoadingMessage(loadingMessage, data.answer, data.references, data.relatedUrls);
+            replaceLoadingMessage(loadingMessage, result?.answer || answer,
+                    result?.references || [], result?.relatedUrls || []);
         }
     } catch (error) {
         if (requestConversationVersion !== conversationVersion) {

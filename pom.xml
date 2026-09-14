@@ -21,6 +21,7 @@
         <java.version>17</java.version>
         <langchain4j.version>1.19.0</langchain4j.version>
         <langchain4j.mcp.version>1.19.0-beta29</langchain4j.mcp.version>
+        <langchain4j.reactor.version>1.19.0-beta29</langchain4j.reactor.version>
         <jsoup.version>1.18.3</jsoup.version>
         <pdfbox.version>2.0.32</pdfbox.version>
         <poi.version>5.4.1</poi.version>
@@ -44,6 +45,11 @@
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-mcp</artifactId>
             <version>${langchain4j.mcp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-reactor</artifactId>
+            <version>${langchain4j.reactor.version}</version>
         </dependency>
         <dependency>
             <groupId>dev.langchain4j</groupId>

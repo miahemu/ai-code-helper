@@ -6,8 +6,10 @@ import com.eastmoney.agent.tool.KnowledgeSearchTool;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
@@ -63,13 +65,30 @@ public class LangChain4jConfig {
                 .build();
     }
 
+    /**
+     * 创建基于 OpenAI Chat Completions 兼容协议的流式聊天模型客户端
+     */
+    @Bean
+    public StreamingChatModel streamingChatModel() {
+        return OpenAiStreamingChatModel.builder()
+                .baseUrl(resolveBaseUrl(chatUrl, CHAT_COMPLETIONS_PATH))
+                .apiKey(chatApiKey)
+                .modelName(chatModelName)
+                .listeners(List.of(chatModelListener))
+                .temperature(0.3D)
+                .timeout(CHAT_TIMEOUT)
+                .build();
+    }
+
     @Bean
     public AgentAssistant agentAssistant(ChatModel chatModel,
+                                         StreamingChatModel streamingChatModel,
                                          KnowledgeSearchTool knowledgeSearchTool,
                                          InterviewQuestionTool interviewQuestionTool,
                                          McpToolProvider mcpToolProvider) {
         return AiServices.builder(AgentAssistant.class)
                 .chatModel(chatModel)
+                .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(memoryId ->
                         MessageWindowChatMemory.withMaxMessages(maxMemoryMessages)) // 每个会话独立存储
                 .tools(knowledgeSearchTool, interviewQuestionTool) //工具调用
