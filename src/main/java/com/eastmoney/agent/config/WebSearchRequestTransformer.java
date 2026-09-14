@@ -17,11 +17,13 @@ import java.util.stream.Collectors;
  * @Author: suyue
  * @name: WebSearchRequestTransformer
  * @Date: 2026/09/11
- * @Description: 时效性问题联网搜索请求转换器
+ * @Description: 知识库优先及联网搜索工具调用请求转换器
  */
 public final class WebSearchRequestTransformer {
 
     static final String WEB_SEARCH_TOOL_METADATA_KEY = "webSearchTool";
+
+    private static final String KNOWLEDGE_SEARCH_TOOL_NAME = "knowledge_search";
 
     private static final Pattern REQUIRED_PATTERN = Pattern.compile(
             "(最新|今日|今天|实时|联网(?:搜索|查询|查找)?|网络搜索|网上搜索|"
@@ -33,12 +35,23 @@ public final class WebSearchRequestTransformer {
     }
 
     /**
-     * 时效性问题首轮只允许调用联网搜索，工具返回后恢复正常处理
+     * 每个新问题先检索知识库，知识库返回后再按需强制联网搜索
      */
     public static ChatRequest transform(ChatRequest request) {
         UserMessage userMessage = UserMessage.findLast(request.messages()).orElse(null);
-        if (userMessage == null || !userMessage.hasSingleText()
-                || !requiresWebSearch(userMessage.singleText())) {
+        if (userMessage == null || !userMessage.hasSingleText()) {
+            return request;
+        }
+
+        List<ToolSpecification> knowledgeSearchTools = request.toolSpecifications().stream()
+                .filter(toolSpecification -> KNOWLEDGE_SEARCH_TOOL_NAME.equals(toolSpecification.name()))
+                .toList();
+        if (!knowledgeSearchTools.isEmpty()
+                && !hasToolResult(request.messages(), Set.of(KNOWLEDGE_SEARCH_TOOL_NAME))) {
+            return requireTool(request, knowledgeSearchTools);
+        }
+
+        if (!requiresWebSearch(userMessage.singleText())) {
             return request;
         }
 
@@ -52,11 +65,15 @@ public final class WebSearchRequestTransformer {
         Set<String> webSearchToolNames = webSearchTools.stream()
                 .map(ToolSpecification::name)
                 .collect(Collectors.toSet());
-        if (hasWebSearchResult(request.messages(), webSearchToolNames)) {
+        if (hasToolResult(request.messages(), webSearchToolNames)) {
             return request;
         }
+        return requireTool(request, webSearchTools);
+    }
+
+    private static ChatRequest requireTool(ChatRequest request, List<ToolSpecification> toolSpecifications) {
         return request.toBuilder()
-                .toolSpecifications(webSearchTools)
+                .toolSpecifications(toolSpecifications)
                 .toolChoice(ToolChoice.REQUIRED)
                 .build();
     }
@@ -70,11 +87,11 @@ public final class WebSearchRequestTransformer {
         return metadata != null && Boolean.TRUE.equals(metadata.get(WEB_SEARCH_TOOL_METADATA_KEY));
     }
 
-    private static boolean hasWebSearchResult(List<ChatMessage> messages, Set<String> webSearchToolNames) {
+    private static boolean hasToolResult(List<ChatMessage> messages, Set<String> toolNames) {
         for (int index = messages.size() - 1; index >= 0; index--) {
             ChatMessage message = messages.get(index);
             if (message instanceof ToolExecutionResultMessage result
-                    && webSearchToolNames.contains(result.toolName())) {
+                    && toolNames.contains(result.toolName())) {
                 return true;
             }
             if (message instanceof UserMessage) {

@@ -77,12 +77,16 @@ sequenceDiagram
     F->>C: POST /api/chat/askStream
     C->>S: chatStream(request)
     S->>A: chatStream(conversationId, question, topK)
-    A->>L: 问题、记忆和工具定义
-    opt 需要知识库、面试题或联网信息
-        L-->>A: 发起工具调用
-        A->>T: 执行对应工具
-        T-->>A: 返回工具结果
-        A->>L: 根据工具结果继续生成
+    A->>L: 问题、记忆和知识库工具
+    L-->>A: 调用 knowledge_search
+    A->>T: 检索用户知识库
+    T-->>A: 返回相关知识片段
+    A->>L: 回填知识库结果
+    opt 需要面试题或时效信息
+        L-->>A: 发起其他工具调用
+        A->>T: 执行面试题或联网搜索工具
+        T-->>A: 返回补充结果
+        A->>L: 根据补充结果继续生成
     end
     L-->>S: 持续返回回答分片
     S-->>F: content 事件
