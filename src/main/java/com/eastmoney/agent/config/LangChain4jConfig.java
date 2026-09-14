@@ -14,12 +14,14 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @Author: suyue
@@ -34,6 +36,9 @@ public class LangChain4jConfig {
 
     private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(60);
 
+    private static final Map<String, Object> THINKING_DISABLED_PARAMETERS =
+            Map.of("thinking", Map.of("type", "disabled"));
+
     @Value("${ai.chat.base_url}")
     private String chatUrl;
 
@@ -42,6 +47,9 @@ public class LangChain4jConfig {
 
     @Value("${ai.chat.model}")
     private String chatModelName;
+
+    @Value("${ai.chat.thinking-enabled}")
+    private Boolean thinkingEnabled;
 
     @Value("${agent.max-steps}")
     private Integer maxSteps;
@@ -63,6 +71,7 @@ public class LangChain4jConfig {
                 .modelName(chatModelName)
                 .listeners(List.of(chatModelListener))
                 .temperature(0.3D)
+                .customParameters(chatCustomParameters())
                 .timeout(CHAT_TIMEOUT)
                 .build();
     }
@@ -78,6 +87,7 @@ public class LangChain4jConfig {
                 .modelName(chatModelName)
                 .listeners(List.of(chatModelListener))
                 .temperature(0.3D)
+                .customParameters(chatCustomParameters())
                 .timeout(CHAT_TIMEOUT)
                 .build();
     }
@@ -87,10 +97,10 @@ public class LangChain4jConfig {
                                          StreamingChatModel streamingChatModel,
                                          KnowledgeSearchTool knowledgeSearchTool,
                                          InterviewQuestionTool interviewQuestionTool,
-                                         McpToolProvider mcpToolProvider,
+                                         ObjectProvider<McpToolProvider> mcpToolProvider,
                                          AgentChatRequestTransformer agentChatRequestTransformer,
                                          SqliteChatMemoryStore chatMemoryStore) {
-        return AiServices.builder(AgentAssistant.class)
+        AiServices<AgentAssistant> agentAssistantBuilder = AiServices.builder(AgentAssistant.class)
                 .chatModel(chatModel)
                 .streamingChatModel(streamingChatModel)
                 .chatMemoryProvider(memoryId ->
@@ -100,10 +110,10 @@ public class LangChain4jConfig {
                                 .chatMemoryStore(chatMemoryStore)
                                 .build()) // 每个会话独立存储，并持久化到 SQLite
                 .tools(knowledgeSearchTool, interviewQuestionTool) //工具调用
-                .toolProvider(mcpToolProvider) // MCP 工具调用
                 .chatRequestTransformer(agentChatRequestTransformer::transform) // 按命令或问题选择工具
-                .maxToolCallingRoundTrips(maxSteps)
-                .build();
+                .maxToolCallingRoundTrips(maxSteps);
+        mcpToolProvider.ifAvailable(agentAssistantBuilder::toolProvider);
+        return agentAssistantBuilder.build();
     }
 
     private String resolveBaseUrl(String endpoint, String apiPath) {
@@ -113,5 +123,9 @@ public class LangChain4jConfig {
             return baseUrl.substring(0, baseUrl.length() - apiPath.length());
         }
         return baseUrl;
+    }
+
+    private Map<String, Object> chatCustomParameters() {
+        return Boolean.TRUE.equals(thinkingEnabled) ? Map.of() : THINKING_DISABLED_PARAMETERS;
     }
 }

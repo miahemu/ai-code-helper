@@ -80,6 +80,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Value("${elasticsearch.index-name}")
     private String elasticsearchIndexName;
 
+    @Value("${bigmodel.enabled:false}")
+    private Boolean webSearchEnabled;
+
     @Autowired
     private EmbeddingService embeddingService;
 
@@ -325,6 +328,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         result.setEmbeddingMode(embeddingService.getMode());
         result.setVectorStoreMode(getVectorStoreMode());
         result.setIndexName(elasticsearchIndexName);
+        result.setWebSearchEnabled(Boolean.TRUE.equals(webSearchEnabled));
         return result;
     }
 

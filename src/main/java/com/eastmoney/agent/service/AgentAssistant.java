@@ -26,7 +26,8 @@ public interface AgentAssistant {
     @OutputGuardrails(value = SafeOutputGuardrail.class, maxRetries = 2)
     Result<String> chat(@MemoryId String conversationId, @UserMessage String question,
                         @V("topK") Integer topK,
-                        @V("knowledgeDocumentIds") List<String> knowledgeDocumentIds);
+                        @V("knowledgeDocumentIds") List<String> knowledgeDocumentIds,
+                        @V("webSearchRequired") Boolean webSearchRequired);
 
     /**
      * 流式回答不配置输出护轨，避免完整回答校验导致响应分片被缓存到生成结束后才发送
@@ -35,6 +36,7 @@ public interface AgentAssistant {
     @InputGuardrails(SafeInputGuardrail.class)
     TokenStream chatStream(@MemoryId String conversationId, @UserMessage String question,
                            @V("topK") Integer topK,
-                           @V("knowledgeDocumentIds") List<String> knowledgeDocumentIds);
+                           @V("knowledgeDocumentIds") List<String> knowledgeDocumentIds,
+                           @V("webSearchRequired") Boolean webSearchRequired);
 
 }

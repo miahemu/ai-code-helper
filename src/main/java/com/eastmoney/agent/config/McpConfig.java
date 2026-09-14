@@ -7,6 +7,7 @@ import dev.langchain4j.mcp.client.McpClient;
 import dev.langchain4j.mcp.client.transport.McpTransport;
 import dev.langchain4j.mcp.client.transport.http.StreamableHttpMcpTransport;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -21,6 +22,7 @@ import java.util.Map;
  * @Description: 智谱联网搜索 MCP 客户端配置
  */
 @Configuration
+@ConditionalOnProperty(prefix = "bigmodel", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class McpConfig {
 
     private static final String AUTHORIZATION = "Authorization";
@@ -33,7 +35,7 @@ public class McpConfig {
     @Value("${bigmodel.mcp.web-search-url}")
     private String webSearchUrl;
 
-    @Value("${bigmodel.mcp.log-enabled:false}")
+    @Value("${bigmodel.mcp.log-enabled}")
     private Boolean logEnabled;
 
     /**

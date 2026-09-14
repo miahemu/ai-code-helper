@@ -29,9 +29,6 @@ public final class WebSearchPolicy {
      */
     public static boolean requiresWebSearch(String question) {
         ChatCommandEnum command = ChatCommandEnum.fromQuestion(question);
-        if (command == ChatCommandEnum.WEB) {
-            return true;
-        }
         if (command != null && command != ChatCommandEnum.AUTO) {
             return false;
         }

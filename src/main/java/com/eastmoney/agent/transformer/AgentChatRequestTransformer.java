@@ -8,6 +8,7 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ToolChoice;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -24,6 +25,9 @@ import java.util.stream.Collectors;
  */
 @Component
 public class AgentChatRequestTransformer {
+
+    @Value("${bigmodel.enabled}")
+    private Boolean webSearchAvailable;
 
     /**
      * 根据显式命令或自动规则选择工具
@@ -64,11 +68,6 @@ public class AgentChatRequestTransformer {
             return metadata != null && Boolean.TRUE.equals(
                     metadata.get(AgentToolConstants.WEB_SEARCH_METADATA_KEY));
         };
-        // /web 是联网专用模式，禁止模型改用知识库或其他工具回答
-        if (command == ChatCommandEnum.WEB) {
-            return requireTool(request, webSearchToolMatcher, "未找到联网搜索工具");
-        }
-
         // /interview 是面试题专用模式，只允许调用面试题搜索工具
         if (command == ChatCommandEnum.INTERVIEW) {
             return requireTool(request, tool -> AgentToolConstants.INTERVIEW_SEARCH.equals(tool.name()),
@@ -76,7 +75,7 @@ public class AgentChatRequestTransformer {
         }
 
         // 普通问题涉及最新、实时等信息时，强制联网，避免模型仅凭记忆回答
-        if (WebSearchPolicy.requiresWebSearch(question)) {
+        if (Boolean.TRUE.equals(webSearchAvailable) && WebSearchPolicy.requiresWebSearch(question)) {
             return requireTool(request, webSearchToolMatcher, "未找到联网搜索工具");
         }
 

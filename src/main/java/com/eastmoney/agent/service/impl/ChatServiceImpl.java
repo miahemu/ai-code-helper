@@ -5,6 +5,7 @@ import com.eastmoney.agent.reference.ChatReferenceResult;
 import com.eastmoney.agent.service.AgentAssistant;
 import com.eastmoney.agent.service.ChatService;
 import com.eastmoney.agent.service.KnowledgeService;
+import com.eastmoney.agent.transformer.WebSearchPolicy;
 import com.eastmoney.agent.vo.request.ChatReqVO;
 import com.eastmoney.agent.vo.response.ChatRespVO;
 import com.eastmoney.agent.vo.response.ChatStreamRespVO;
@@ -12,6 +13,7 @@ import dev.langchain4j.service.Result;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.tool.ToolExecution;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -36,6 +38,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     private ChatReferenceProcessor chatReferenceProcessor;
 
+    @Value("${bigmodel.enabled}")
+    private Boolean webSearchAvailable;
+
     /**
      * 调用 Agent 生成回答，并整理本次回答引用的资料和相关网址
      *
@@ -44,8 +49,9 @@ public class ChatServiceImpl implements ChatService {
      */
     @Override
     public ChatRespVO chat(ChatReqVO request) {
+        Boolean webSearchRequired = isWebSearchRequired(request);
         Result<String> agentResult = agentAssistant.chat(request.getConversationId(), request.getQuestion(),
-                request.getTopK(), request.getKnowledgeDocumentIds());
+                request.getTopK(), request.getKnowledgeDocumentIds(), webSearchRequired);
         return buildChatResponse(agentResult.content(), agentResult.toolExecutions());
     }
 
@@ -59,8 +65,9 @@ public class ChatServiceImpl implements ChatService {
     public Flux<ChatStreamRespVO> chatStream(ChatReqVO request) {
         return Flux.create(sink -> {
             List<ToolExecution> toolExecutions = new ArrayList<>();
+            Boolean webSearchRequired = isWebSearchRequired(request);
             TokenStream tokenStream = agentAssistant.chatStream(request.getConversationId(), request.getQuestion(),
-                    request.getTopK(), request.getKnowledgeDocumentIds());
+                    request.getTopK(), request.getKnowledgeDocumentIds(), webSearchRequired);
             tokenStream.onPartialResponse(content -> {
                         ChatStreamRespVO event = new ChatStreamRespVO();
                         event.setType("content");
@@ -88,5 +95,11 @@ public class ChatServiceImpl implements ChatService {
         result.setReferences(referenceResult.getReferences());
         result.setRelatedUrls(referenceResult.getRelatedUrls());
         return result;
+    }
+
+    private boolean isWebSearchRequired(ChatReqVO request) {
+        return Boolean.TRUE.equals(webSearchAvailable)
+                && (Boolean.TRUE.equals(request.getWebSearchEnabled())
+                || WebSearchPolicy.requiresWebSearch(request.getQuestion()));
     }
 }

@@ -88,7 +88,7 @@ sequenceDiagram
         A->>T: 检索用户知识库
         T-->>A: 返回相关知识片段
         A->>L: 根据知识库结果继续生成
-    else /web 或问题需要时效信息
+    else 用户开启联网搜索或问题需要时效信息
         L-->>A: 调用联网搜索工具
         A->>T: 执行联网搜索
         T-->>A: 返回搜索结果
@@ -123,7 +123,7 @@ sequenceDiagram
 
 ## 运行前配置
 
-聊天模型和智谱 MCP 是当前启动所需配置。请修改 `src/main/resources/application.yml`，不要将真实密钥提交到代码仓库。
+聊天模型是项目启动所需配置，智谱 MCP 联网搜索默认关闭、按需开启。请修改 `src/main/resources/application.yml`，不要将真实密钥提交到代码仓库。
 
 ### 聊天模型
 
@@ -133,11 +133,13 @@ ai:
     base_url: "https://your-host/v1/chat/completions"
     api-key: "your-api-key"
     model: "your-model"
+    thinking-enabled: false
   chat-memory:
     max-messages: 20
 ```
 
 `base_url` 支持填写 OpenAI 兼容服务的基础地址，也支持填写包含 `/chat/completions` 的完整地址。项目会同时创建 `OpenAiChatModel` 和 `OpenAiStreamingChatModel`：同步接口使用前者，SSE 接口使用后者。
+Agent 工具调用默认关闭 thinking，以兼容 DeepSeek V4 Pro 及其兼容网关；需要启用时可将 `thinking-enabled` 改为 `true`。
 
 
 ### Agent
@@ -156,13 +158,14 @@ agent:
 
 ```yaml
 bigmodel:
+  enabled: false
   api-key: "your-coding-plan-api-key"
   mcp:
     web-search-url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp"
     log-enabled: false
 ```
 
-项目通过 Streamable HTTP 协议连接智谱 Web Search Prime MCP，并将服务端提供的工具注册到 Agent。当前 `McpConfig` 会在启动时创建客户端，因此必须配置有效的 GLM Coding Plan API Key，并保证 MCP 服务可访问，否则应用会启动失败。
+项目通过 Streamable HTTP 协议连接智谱 Web Search Prime MCP，并将服务端提供的工具注册到 Agent。`enabled` 默认为 `false`，关闭或未配置整个 `bigmodel` 节点时不会创建 MCP 客户端，应用可以正常启动，页面也不会展示“联网搜索”按钮。需要使用时将其改为 `true`，并配置有效的 GLM Coding Plan API Key 和 MCP 地址。
 
 涉及最新动态、实时信息或外部事实核验的问题，Agent 会自动选择联网搜索工具。`log-enabled` 仅建议在调试 MCP 请求时开启。
 
@@ -240,7 +243,6 @@ mvn spring-boot:run
 | --- | --- |
 | `/auto 问题` | 由 Agent 根据问题自动选择是否使用工具 |
 | `/kb 问题` | 多选已导入文档，仅根据所选知识库范围回答 |
-| `/web 问题` | 仅使用联网搜索回答 |
 | `/interview 关键词` | 仅搜索相关技术面试题 |
 | `/skills` | 查看 Diving 当前可使用的能力 |
 | `/help` | 查看全部斜杠命令及说明 |

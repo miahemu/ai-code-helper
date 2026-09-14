@@ -19,4 +19,7 @@ public class SystemStatusRespVO {
 
     // Elasticsearch 索引名称
     private String indexName;
+
+    // 是否启用联网搜索功能
+    private Boolean webSearchEnabled;
 }

@@ -30,6 +30,9 @@ public class ChatReqVO {
     // 返回的知识库参考片段数量
     private Integer topK = 4;
 
+    // 本次提问是否使用联网搜索
+    private Boolean webSearchEnabled = false;
+
     // /kb 命令限定检索的文档标识，空列表表示检索全部已导入文档
     @Size(max = 20, message = "一次最多选择 20 个知识库文档")
     private List<@Size(max = 64, message = "知识库文档标识不能超过 64 个字符") String> knowledgeDocumentIds = new ArrayList<>();

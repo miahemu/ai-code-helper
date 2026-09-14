@@ -6,7 +6,7 @@
     <meta name="description" content="Diving 智能助手，支持通用问答、知识库检索与智能工具">
     <title>Diving 智能助手</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260911-3">
-    <link rel="stylesheet" href="/css/index.css?v=20260914-23">
+    <link rel="stylesheet" href="/css/index.css?v=20260914-26">
 </head>
 <body>
 <div class="app-shell">
@@ -81,9 +81,19 @@
                 <div id="selectedKnowledgeDocuments" class="selected-knowledge-documents" hidden></div>
                 <textarea id="question" rows="1" maxlength="2000"
                           aria-controls="commandMenu" aria-autocomplete="list"
-                          placeholder="输入问题，Enter 发送，Shift + Enter 换行"></textarea>
+                          placeholder="向 Diving 提问，输入 / 查看命令，Enter 发送"></textarea>
                 <div class="composer-footer">
-                    <span id="questionCount" class="character-count">0 / 2000</span>
+                    <div class="composer-options">
+                        <button id="webSearchBtn" class="composer-option-button" type="button"
+                                aria-pressed="false" title="本次提问使用联网搜索" hidden>
+                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="9"></circle>
+                                <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"></path>
+                            </svg>
+                            <span>联网搜索</span>
+                        </button>
+                        <span id="questionCount" class="character-count">0 / 2000</span>
+                    </div>
                     <div class="composer-actions">
                         <button id="stopBtn" class="stop-button" type="button" aria-label="停止生成" hidden>
                             <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -223,6 +233,6 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="/js/app.js?v=20260914-14"></script>
+<script type="module" src="/js/app.js?v=20260914-19"></script>
 </body>
 </html>

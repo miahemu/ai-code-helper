@@ -1,4 +1,5 @@
-import {elements} from './elements.js?v=20260914-2';
+import {elements} from './elements.js?v=20260914-9';
+import {setWebSearchAvailable} from './commands.js?v=20260914-6';
 import {
     deleteDocument as deleteDocumentRequest,
     getDocument,
@@ -277,10 +278,19 @@ async function loadStatus() {
     const statusContainer = elements.status.closest('.system-status');
     try {
         const data = await getSystemStatus();
+        const webSearchAvailable = data.webSearchEnabled === true;
+        setWebSearchAvailable(webSearchAvailable);
+        elements.webSearchButton.hidden = !webSearchAvailable;
+        if (!webSearchAvailable) {
+            elements.webSearchButton.setAttribute('aria-pressed', 'false');
+        }
         elements.status.textContent = `向量：${data.embeddingMode} · 存储：${data.vectorStoreMode}`;
         elements.status.title = data.indexName ? `索引：${data.indexName}` : '';
         statusContainer.classList.add('ready');
     } catch (error) {
+        setWebSearchAvailable(false);
+        elements.webSearchButton.hidden = true;
+        elements.webSearchButton.setAttribute('aria-pressed', 'false');
         elements.status.textContent = '服务状态读取失败';
         statusContainer.classList.remove('ready');
     }

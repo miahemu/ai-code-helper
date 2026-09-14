@@ -47,5 +47,6 @@ export const elements = {
     title: document.getElementById('title'),
     toast: document.getElementById('toast'),
     topK: document.getElementById('topK'),
-    uploadButton: document.getElementById('uploadBtn')
+    uploadButton: document.getElementById('uploadBtn'),
+    webSearchButton: document.getElementById('webSearchBtn')
 };

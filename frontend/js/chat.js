@@ -1,13 +1,13 @@
 import {CHAT_COMMANDS, getCommandHelpMarkdown, getCommandSuggestions, getSkillsMarkdown,
-    parseChatCommand} from './commands.js?v=20260914-3';
-import {elements} from './elements.js?v=20260914-7';
+    parseChatCommand} from './commands.js?v=20260914-6';
+import {elements} from './elements.js?v=20260914-9';
 import {renderMarkdown} from './markdown.js?v=20260911-3';
 import {chat, getDocuments, streamChat} from './route.js?v=20260914-3';
 import {loadActiveConversationId, loadConversations, saveActiveConversationId, saveConversations}
     from './conversation-store.js?v=20260914-1';
 import {createLogoImage, openContentViewer, showToast} from './ui.js?v=20260914-2';
 
-const DEFAULT_QUESTION_PLACEHOLDER = '输入问题，Enter 发送，Shift + Enter 换行';
+const DEFAULT_QUESTION_PLACEHOLDER = '向 Diving 提问，输入 / 查看命令，Enter 发送';
 const FOLLOW_UP_QUESTION_PLACEHOLDER = '可继续输入补充问题，将在当前回答结束后发送';
 const KNOWLEDGE_COMMAND = '/kb';
 
@@ -898,6 +898,7 @@ function ask() {
         question,
         topK: Number(elements.topK.value),
         streamEnabled: elements.streamMode.checked,
+        webSearchEnabled: elements.webSearchButton.getAttribute('aria-pressed') === 'true',
         knowledgeDocumentIds: selectedKnowledgeDocuments.map(item => item.documentId),
         knowledgeDocuments: selectedKnowledgeDocuments.map(item => ({
             documentId: item.documentId,
@@ -937,6 +938,7 @@ async function sendQuestion(questionInfo) {
             conversationId: requestConversationId,
             question: questionInfo.question,
             topK: questionInfo.topK,
+            webSearchEnabled: questionInfo.webSearchEnabled,
             knowledgeDocumentIds: questionInfo.knowledgeDocumentIds
         };
         if (questionInfo.streamEnabled) {
@@ -1005,6 +1007,10 @@ function stopAnswer() {
 
 export function initChat() {
     elements.askButton.addEventListener('click', ask);
+    elements.webSearchButton.addEventListener('click', () => {
+        const enabled = elements.webSearchButton.getAttribute('aria-pressed') !== 'true';
+        elements.webSearchButton.setAttribute('aria-pressed', String(enabled));
+    });
     elements.stopButton.addEventListener('click', stopAnswer);
     elements.clearChatButton.addEventListener('click', clearChat);
     elements.newConversationButton.addEventListener('click', createNewConversation);

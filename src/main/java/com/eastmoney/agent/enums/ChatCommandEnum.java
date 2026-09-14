@@ -15,7 +15,6 @@ public enum ChatCommandEnum {
 
     AUTO("/auto"),
     KNOWLEDGE("/kb"),
-    WEB("/web"),
     INTERVIEW("/interview"),
     UNKNOWN(null);
 

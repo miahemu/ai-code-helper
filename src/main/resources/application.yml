@@ -17,6 +17,8 @@ ai:
     base_url: "xxxxxxxx"
     api-key: "xxxxxxxxx"
     model: "DeepSeek-V4-Pro"
+    # Agent 工具调用默认关闭 thinking，避免思考模式与 tool_choice 冲突
+    thinking-enabled: false
   chat-memory:
     # 每个 conversationId 最多保留的消息数量，包含用户、助手和工具消息
     max-messages: 20
@@ -47,6 +49,8 @@ agent:
   trace-enabled: true
 
 bigmodel:
+  # 是否启用智谱联网搜索；未配置时默认关闭
+  enabled: false
   # GLM Coding Plan 专属 API Key
   # Token plan：https://bigmodel.cn/coding-plan/personal/overview
   # 余额总览：https://bigmodel.cn/finance-center/finance/overview
@@ -56,7 +60,7 @@ bigmodel:
   mcp:
     web-search-url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp"
     # 调试时可开启 MCP 请求和响应日志
-    log-enabled: false
+    log-enabled: true
 
 elasticsearch:
   # 首次启动建议保持 false，跑通后再改为 true 接测试线 ES

@@ -10,11 +10,6 @@ export const CHAT_COMMANDS = [
         description: '多选已导入文档，仅根据所选资料回答'
     },
     {
-        name: '/web',
-        title: '联网搜索',
-        description: '仅通过联网搜索回答问题'
-    },
-    {
         name: '/interview',
         title: '面试题',
         description: '仅搜索相关技术面试题'
@@ -34,6 +29,12 @@ export const CHAT_COMMANDS = [
         action: 'help'
     }
 ];
+
+let webSearchAvailable = false;
+
+export function setWebSearchAvailable(available) {
+    webSearchAvailable = available === true;
+}
 
 export function getCommandSuggestions(input) {
     const value = input.trimStart();
@@ -67,9 +68,10 @@ export function getCommandHelpMarkdown() {
 }
 
 export function getSkillsMarkdown() {
+    const webSearchCapability = webSearchAvailable
+            ? '- **联网搜索**：搜索需要时效性或外部核验的信息\n' : '';
     return `### 可用能力
 
 - **知识库检索**：从已导入的一个或多个文档中查找资料
-- **联网搜索**：搜索需要时效性或外部核验的信息
-- **面试题搜索**：查找指定技术方向的相关面试题`;
+${webSearchCapability}- **面试题搜索**：查找指定技术方向的相关面试题`;
 }
