@@ -1,8 +1,37 @@
 # AI Agent 与知识库 Demo
 
-这是一个基于 Spring Boot 和 LangChain4j 的 AI Agent Demo，支持同步/流式问答、会话记忆、知识库检索、面试题搜索和 MCP 联网搜索。
+这是一个基于 Spring Boot 和 LangChain4j 开发的 AI Agent Demo，主要用于演示大模型对话、Agent 工具调用和 RAG 知识库检索的完整实现。项目目前优先适配 DeepSeek 及其兼容网关，支持同步/流式问答、多会话记忆、知识库检索、面试题搜索、MCP 联网搜索、输入输出安全检查以及回答引用展示。
 
-前后端保存在同一个 Maven 项目中。构建时会将 `frontend` 目录复制到应用的 `static` 目录，启动 Spring Boot 后即可直接访问页面。
+
+项目采用前后端一体化结构，后端提供 Agent 编排、模型调用、知识检索和数据存储能力，前端使用原生 HTML、CSS、JavaScript 实现对话与知识库管理页面。
+
+## 功能预览
+
+### 1.智能问答
+
+![主页](images/主页.png)
+
+### 2.知识库检索
+
+选择一个或多个已导入文档，限定本次问答使用的知识库范围：
+
+![选择知识库文档](images/知识库1.png)
+
+Agent 根据指定文档检索相关片段并生成带引用标记的回答：
+
+![知识库问答与引用](images/知识库2.png)
+
+点击回答中的引用标记，可以查看实际支持回答的知识库原文片段：
+
+![查看知识库引用原文](images/知识库3.png)
+
+### 3.联网搜索
+
+启用智谱 Web Search Prime MCP 后，页面输入框会显示“联网搜索”开关。
+
+联网搜索结果会作为工具调用结果交给模型整理。最终回答会在对应事实后保留可点击的来源链接，并展示相关网页，方便继续查看和核验原始信息：
+
+![联网搜索](images/联网搜索.png)
 
 ## 技术栈
 
@@ -107,23 +136,10 @@ sequenceDiagram
     F-->>U: 增量展示最终回答
 ```
 
-后端聊天代码建议按下面的顺序阅读：
-
-```text
-流式：ChatController.askStream
-   └─ ChatServiceImpl.chatStream
-      └─ AgentAssistant.chatStream → TokenStream → Agent 工具
-
-同步：ChatController.ask
-   └─ ChatServiceImpl.chat
-      └─ AgentAssistant.chat → Result<String> → Agent 工具
-```
-
-同步模型、流式模型、会话记忆、本地工具和 MCP 工具统一在 `LangChain4jConfig` 中组装。
 
 ## 运行前配置
 
-聊天模型是项目启动所需配置，智谱 MCP 联网搜索默认关闭、按需开启。请修改 `src/main/resources/application.yml`，不要将真实密钥提交到代码仓库。
+聊天模型是项目启动所需配置，智谱 MCP 联网搜索默认关闭、按需开启。
 
 ### 聊天模型
 
@@ -138,8 +154,13 @@ ai:
     max-messages: 20
 ```
 
-`base_url` 支持填写 OpenAI 兼容服务的基础地址，也支持填写包含 `/chat/completions` 的完整地址。项目会同时创建 `OpenAiChatModel` 和 `OpenAiStreamingChatModel`：同步接口使用前者，SSE 接口使用后者。
-Agent 工具调用默认关闭 thinking，以兼容 DeepSeek V4 Pro 及其兼容网关；需要启用时可将 `thinking-enabled` 改为 `true`。
+当前项目优先适配 DeepSeek 及其兼容网关，并以 DeepSeek 模型完成主要功能验证。
+
+`base_url` 支持填写服务基础地址，也支持填写包含 `/chat/completions` 的完整地址。项目会同时创建 `OpenAiChatModel` 和 `OpenAiStreamingChatModel`：同步接口使用前者，SSE 接口使用后者。
+
+其他模型只有在兼容 OpenAI Chat Completions 协议时才可能接入，目前未做完整兼容性验证，工具调用、`tool_choice`、thinking 参数和 SSE 流式响应等行为可能存在差异。
+
+`thinking-enabled` 默认为 `false`，用于关闭 DeepSeek thinking，避免思考模式与 Agent 工具调用冲突；使用其他模型时需要根据对应服务的接口能力自行调整和验证。
 
 
 ### Agent
@@ -210,7 +231,9 @@ ai:
 
 `dimensions` 必须与模型实际返回的向量维度一致。本地哈希向量仅用于演示，不具备完整语义理解能力，因此默认还会进行关键词重合校验。
 
-默认使用本地 SQLite 存储：文档、切片、JSON 向量以及会话记忆保存在 `data/knowledge.db`；向量检索时由 Java 计算余弦相似度。接入 Elasticsearch 8.x 时配置：
+默认使用本地 SQLite 存储：文档、切片、JSON 向量以及会话记忆保存在 `data/knowledge.db`；向量检索时由 Java 计算余弦相似度。
+
+接入 Elasticsearch 8.x 时配置：
 
 ```yaml
 elasticsearch:
@@ -249,41 +272,6 @@ mvn spring-boot:run
 
 选择 `/kb` 后，页面会显示已导入文档，可同时选择多个文档。所选文档会以标签形式显示在输入框上方，本次检索只会在这些文档中进行。
 
-## 接口说明
-
-### 对答接口
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | `/api/chat/askStream` | SSE 流式问答，前端默认使用 |
-| POST | `/api/chat/ask` | 同步问答，保留用于普通 HTTP 调用 |
-
-两个接口使用相同的请求参数：
-
-```json
-{
-  "conversationId": "demo-session-1",
-  "question": "下雨天衣服不干怎么办？",
-  "topK": 4,
-  "knowledgeDocumentIds": []
-}
-```
-
-`conversationId` 用于隔离会话记忆，`topK` 默认值为 4。`knowledgeDocumentIds` 用于限定知识库检索范围，空数组表示检索全部文档。
-
-
-### 知识库接口
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | `/api/knowledge/documents/text` | 导入标题和文本内容 |
-| POST | `/api/knowledge/documents/file` | 上传 TXT、MD、PDF、DOC 或 DOCX 文件 |
-| GET | `/api/knowledge/documents` | 查询文档列表 |
-| GET | `/api/knowledge/documents/{documentId}` | 查询文档详情 |
-| POST | `/api/knowledge/documents/{documentId}/delete` | 删除文档及其切片 |
-| POST | `/api/knowledge/documents/{documentId}/reindex` | 使用原文重新生成切片和索引 |
-| GET | `/api/knowledge/chunks/search` | 直接检索知识切片 |
-| GET | `/api/knowledge/status` | 查询 Embedding 和向量库运行模式 |
 
 ## 调用示例
 
